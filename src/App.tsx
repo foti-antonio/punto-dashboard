@@ -1948,7 +1948,10 @@ function Analytics({
       !categories.some((c) => c.id === t.categoryId),
   )) {
     const c = data.entities[t.categoryId];
-    if (c?.type === 'category')
+    if (
+      c?.type === 'category' &&
+      !categories.some((category) => category.id === c.id)
+    )
       categories.push({
         ...c,
         value: transactions

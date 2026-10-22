@@ -272,4 +272,24 @@ describe('percorsi utente nei componenti React', () => {
       ),
     ).toHaveLength(count + 1);
   });
+  it('raggruppa le spese storiche una sola volta anche se la categoria è stata eliminata', async () => {
+    const user = userEvent.setup(),
+      initial = demoData();
+    const existing = Object.values(initial.entities).find(
+      (e) =>
+        e.type === 'transaction' &&
+        e.categoryId === 'category-3' &&
+        e.date.startsWith(today().slice(0, 7)),
+    )!;
+    initial.entities.extra = { ...existing, id: 'extra' };
+    initial.entities['category-3'].deletedAt = stamp();
+    render(<Harness initial={initial} />);
+    await user.click(
+      screen.getByRole('button', { name: 'Analisi', exact: true }),
+    );
+    const graph = screen.getByRole('img', { name: /Software e servizi/ });
+    expect(
+      graph.getAttribute('aria-label')!.match(/Software e servizi/g) || [],
+    ).toHaveLength(1);
+  });
 });
