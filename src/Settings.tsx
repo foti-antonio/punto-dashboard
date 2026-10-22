@@ -15,6 +15,9 @@ import {
   HardDrive,
   Trash2,
   Link2,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { useApp } from './context';
 import { Dialog, Field, SectionHeading } from './components';
@@ -41,6 +44,7 @@ import {
   type SyncPlan,
 } from './github';
 import { type FormSpec } from './forms';
+import { setThemePreference, useTheme } from './theme';
 export interface SyncIndicator {
   label: string;
   status: 'local' | 'dirty' | 'syncing' | 'synced' | 'error' | 'locked';
@@ -55,6 +59,7 @@ export function SettingsPage({
   onForm: (s: FormSpec) => void;
 }) {
   const { data, revision, save, update, toast } = useApp();
+  const theme = useTheme();
   const [vault, setVault] = useState<Vault | null>(null),
     [loaded, setLoaded] = useState(false),
     [token, setToken] = useState(''),
@@ -274,6 +279,40 @@ export function SettingsPage({
               Archivio <strong>Questo profilo browser</strong>
             </span>
           </div>
+        </section>
+        <section className="panel settings-panel">
+          <SectionHeading title="Aspetto" />
+          <fieldset className="theme-options" aria-describedby="theme-note">
+            <legend className="sr-only">Tema dell’interfaccia</legend>
+            {(
+              [
+                ['light', 'Chiaro', Sun],
+                ['dark', 'Scuro', Moon],
+                ['system', 'Sistema', Monitor],
+              ] as const
+            ).map(([value, label, Icon]) => (
+              <label className="theme-option" key={value}>
+                <input
+                  type="radio"
+                  name="theme"
+                  value={value}
+                  checked={theme.preference === value}
+                  onChange={() => setThemePreference(value)}
+                />
+                <Icon size={19} aria-hidden="true" />
+                <span>{label}</span>
+              </label>
+            ))}
+          </fieldset>
+          <p className="form-hint" id="theme-note">
+            La preferenza viene salvata solo in questo browser
+          </p>
+          {theme.persistenceError && (
+            <p className="theme-storage-error" role="status">
+              La preferenza è applicata a questa sessione, ma non è stata
+              memorizzata. Il salvataggio nel browser non è disponibile.
+            </p>
+          )}
         </section>
         <section className="panel settings-panel">
           <div className="settings-section-title">

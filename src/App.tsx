@@ -260,7 +260,9 @@ export function App() {
               <br />
               un giorno alla volta.
             </p>
-            <span className="note-decoration">↗</span>
+            <span className="note-decoration" aria-hidden="true">
+              ↗
+            </span>
           </div>
           <button
             className={`nav-item ${page === 'settings' ? 'active' : ''}`}
@@ -1930,7 +1932,11 @@ function Analytics({
     expense = total(transactions, 'expense');
   const categories = [
     ...list(data, 'category'),
-    { id: '', name: 'Senza categoria', color: '#a4aaa0' },
+    {
+      id: '',
+      name: 'Senza categoria',
+      color: 'var(--chart-category-fallback)',
+    },
   ]
     .map((c) => ({
       ...c,

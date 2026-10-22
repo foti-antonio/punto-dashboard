@@ -10,6 +10,25 @@
       content="Punto: uno spazio per i tuoi progetti, le tue attività e la tua tranquillità economica."
     />
     <title>Punto · Dashboard personale</title>
+    <script>
+      // Resolve the browser preference before styles or React can paint.
+      (() => {
+        let preference = 'system';
+        try {
+          const saved = localStorage.getItem('punto-theme');
+          if (saved === 'light' || saved === 'dark') preference = saved;
+        } catch {}
+        const theme =
+          preference === 'system'
+            ? window.matchMedia?.('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
+    <link rel="stylesheet" href="/src/theme.css" />
   </head>
   <body>
     <div id="root"></div>

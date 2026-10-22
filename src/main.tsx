@@ -4,7 +4,9 @@ import { App } from './App';
 import { loadState, mutateData, subscribe, type StoredState } from './storage';
 import { type Data, type Entity, stamp } from './domain';
 import { Context } from './context';
+import { initializeTheme } from './theme';
 import './styles.css';
+initializeTheme();
 function Root() {
   const [state, setState] = useState<StoredState>();
   const [error, setError] = useState('');

@@ -222,7 +222,7 @@ export function TransactionTable({
                         background:
                           category?.type === 'category'
                             ? category.color
-                            : '#a4aaa0',
+                            : 'var(--chart-category-fallback)',
                       }}
                     />
                     {category && 'name' in category
@@ -312,8 +312,8 @@ export function LineChart({
         </desc>
         <defs>
           <linearGradient id={uid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4b936d" stopOpacity=".15" />
-            <stop offset="100%" stopColor="#4b936d" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--chart-fill)" stopOpacity=".15" />
+            <stop offset="100%" stopColor="var(--chart-fill)" stopOpacity="0" />
           </linearGradient>
         </defs>
         {Array.from({ length: 5 }, (_, i) => {
@@ -325,7 +325,7 @@ export function LineChart({
                 x2={w - right}
                 y1={y(v)}
                 y2={y(v)}
-                stroke="#e9ece6"
+                stroke="var(--chart-grid)"
                 strokeDasharray="3 5"
               />
               <text x={left - 14} y={y(v) + 4} textAnchor="end">
@@ -342,7 +342,7 @@ export function LineChart({
           <path
             d={secondary}
             fill="none"
-            stroke="#b5bdb2"
+            stroke="var(--chart-secondary)"
             strokeWidth="2"
             strokeDasharray="6 6"
           />
@@ -350,7 +350,7 @@ export function LineChart({
         <path
           d={line}
           fill="none"
-          stroke="#347957"
+          stroke="var(--chart-line)"
           strokeWidth="2.8"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -365,8 +365,8 @@ export function LineChart({
               cx={x(i)}
               cy={y(p.value)}
               r={hover === i ? 5 : 3}
-              fill="#347957"
-              stroke="white"
+              fill="var(--chart-line)"
+              stroke="var(--surface)"
               strokeWidth="2"
             />
             <circle
@@ -393,14 +393,13 @@ export function LineChart({
               rx="6"
               width="140"
               height="31"
-              fill="#1a3328"
+              fill="var(--tooltip-background)"
             />
             <text
               x={Math.min(w - 90, Math.max(140, x(hover)))}
               y={Math.max(1, y(points[hover].value) - 48) + 20}
               textAnchor="middle"
-              fill="white"
-              style={{ fill: 'white', fontWeight: 600 }}
+              style={{ fill: 'var(--tooltip-text)', fontWeight: 600 }}
             >
               {euro(points[hover].value)}
             </text>
@@ -446,9 +445,19 @@ export function BarChart({
     </div>
   );
 }
-export function ProjectIcon({ color = '#347957' }: { color?: string }) {
+export function ProjectIcon({
+  color = 'var(--chart-line)',
+}: {
+  color?: string;
+}) {
   return (
-    <span className="project-icon" style={{ color, background: color + '15' }}>
+    <span
+      className="project-icon"
+      style={{
+        color,
+        background: `color-mix(in srgb, ${color} 8%, transparent)`,
+      }}
+    >
       <Folder size={21} strokeWidth={1.6} />
     </span>
   );

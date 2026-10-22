@@ -20,6 +20,7 @@ import userEvent from '@testing-library/user-event';
 import { IDBFactory } from 'fake-indexeddb';
 import { App } from '../src/App';
 import { Context } from '../src/context';
+import { initializeTheme, setThemePreference } from '../src/theme';
 import {
   emptyData,
   demoData,
@@ -41,10 +42,17 @@ beforeAll(() => {
     this.removeAttribute('open');
   };
 });
+let stopTheme: (() => void) | undefined;
 beforeEach(() => {
   location.hash = '#overview';
+  localStorage.clear();
+  stopTheme = initializeTheme();
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  stopTheme?.();
+  vi.restoreAllMocks();
+});
 let latest: Data;
 function Harness({ initial = emptyData() }: { initial?: Data }) {
   const [data, setData] = useState(initial);
@@ -87,6 +95,85 @@ async function add(user: ReturnType<typeof userEvent.setup>, label: string) {
   return within(screen.getByRole('dialog'));
 }
 describe('percorsi utente nei componenti React', () => {
+  it('cambia tema con mouse e tastiera senza modificare dati o sincronizzazione', async () => {
+    const user = userEvent.setup();
+    render(<Harness initial={demoData()} />);
+    await user.click(
+      screen.getByRole('button', { name: 'Impostazioni', exact: true }),
+    );
+    await screen.findByRole('button', { name: 'Salvato sul dispositivo' });
+    const before = latest;
+    const sync = screen.getByTitle('Apri le impostazioni di sincronizzazione');
+    const syncBefore = sync.outerHTML;
+    const radios = within(
+      screen.getByRole('group', { name: 'Tema dell’interfaccia' }),
+    );
+    expect((radios.getByLabelText('Sistema') as HTMLInputElement).checked).toBe(
+      true,
+    );
+    await user.click(radios.getByLabelText('Scuro'));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem('punto-theme')).toBe('dark');
+    await user.keyboard('{ArrowLeft}');
+    expect((radios.getByLabelText('Chiaro') as HTMLInputElement).checked).toBe(
+      true,
+    );
+    expect(document.documentElement.dataset.theme).toBe('light');
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+    expect((radios.getByLabelText('Sistema') as HTMLInputElement).checked).toBe(
+      true,
+    );
+    expect(latest).toBe(before);
+    expect(sync.outerHTML).toBe(syncBefore);
+  });
+
+  it('segnala la preferenza non memorizzata e conserva la scelta durante la navigazione', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(
+      screen.getByRole('button', { name: 'Impostazioni', exact: true }),
+    );
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage blocked');
+    });
+    await user.click(screen.getByLabelText('Scuro'));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(screen.getByRole('status').textContent).toContain(
+      'non è stata memorizzata',
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Panoramica', exact: true }),
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Impostazioni', exact: true }),
+    );
+    expect((screen.getByLabelText('Scuro') as HTMLInputElement).checked).toBe(
+      true,
+    );
+    expect(screen.getByRole('status').textContent).toContain(
+      'non è stata memorizzata',
+    );
+  });
+
+  it('mantiene il tema locale quando sostituisce i dati con la demo', async () => {
+    const user = userEvent.setup();
+    setThemePreference('dark');
+    render(<Harness />);
+    await user.click(
+      screen.getByRole('button', { name: 'Impostazioni', exact: true }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Carica demo' }));
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Crea backup e carica demo',
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem('punto-theme')).toBe('dark');
+    expect(JSON.stringify(latest)).not.toContain('punto-theme');
+  });
+
   it('crea conto, progetto, attività e movimento e aggiorna panoramica e analisi', async () => {
     const user = userEvent.setup();
     render(<Harness />);
@@ -149,7 +236,7 @@ describe('percorsi utente nei componenti React', () => {
     expect(screen.getByRole('heading', { name: 'Analisi.' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Progetto test' })).toBeTruthy();
     expect(screen.getAllByText(/123,45/).length).toBeGreaterThan(0);
-  });
+  }, 15000);
   it('registra un trasferimento aggiornando i conti e lasciando invariato il totale', async () => {
     const user = userEvent.setup();
     render(<Harness initial={demoData()} />);

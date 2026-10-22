@@ -35,6 +35,8 @@ Il manifest Sites è [`.openai/hosting.json`](.openai/hosting.json). Quando tras
 
 Ogni modifica viene salvata in IndexedDB prima di chiudere il relativo modulo. Se il salvataggio fallisce, la finestra rimane aperta con l’errore. La persistenza dipende dal profilo browser e dall’origine: localhost, sito pubblicato e altro hosting hanno archivi distinti. Cambiare browser, usare una finestra privata o cancellare i dati del sito può rendere indisponibile la copia locale. Esporta i dati o salvali su GitHub prima di spostarti.
 
+In **Impostazioni → Aspetto** scegli **Chiaro**, **Scuro** o **Sistema**. Il cambio è immediato; al primo accesso Punto segue il tema del dispositivo, inclusi i suoi cambiamenti. La preferenza è salvata in `localStorage` con chiave `punto-theme` e aggiorna le altre schede aperte. Se il browser impedisce il salvataggio, viene applicata alla sessione con un avviso. Il tema è separato dai dati: esportazioni, backup, ripristino, demo e sincronizzazione GitHub non lo modificano.
+
 ## Repository separate e GitHub
 
 - **Codice privato:** https://github.com/foti-antonio/punto-dashboard
@@ -80,9 +82,9 @@ Ogni occorrenza è identificata da previsione e indice stabile della ricorrenza:
 
 ## Verifica
 
-`npm test` verifica importi e saldi, trasferimenti, ricorrenze e date, riconciliazione, scenari, CSV errati e duplicati, merge a tre vie e conflitti, SHA e race, recupero dopo errori di rete e token scaduti, cifratura, persistenza IndexedDB, revisioni e backup. Include percorsi React con DOM simulato: creazione collegata di conto/progetto/attività/movimento, aggiornamento di panoramica e analisi, trasferimenti, registrazione previsioni e navigazione.
+`npm test` verifica importi e saldi, trasferimenti, ricorrenze e date, riconciliazione, scenari, CSV errati e duplicati, merge a tre vie e conflitti, SHA e race, recupero dopo errori di rete e token scaduti, cifratura, persistenza IndexedDB, revisioni e backup. Include percorsi React con DOM simulato: creazione collegata di conto/progetto/attività/movimento, aggiornamento di panoramica e analisi, trasferimenti, registrazione previsioni e navigazione. I test del tema coprono avvio prima di React, valori non validi, persistenza, cambiamenti del sistema, eventi tra schede, storage bloccato e selezione da tastiera senza modificare i dati.
 
-La build TypeScript deve passare. I test GitHub usano risposte simulate e due archivi di dispositivo; non equivalgono a una prova interattiva con token reale. In questa sessione non è disponibile un browser per QA visiva o per verificare l’uso reale su desktop e telefono. Prima di inserire dati importanti, completa questa verifica con la demo su due browser/dispositivi:
+La build TypeScript deve passare. I temi sono stati verificati in Chromium con dati demo sulle sette pagine a 1440 e 390 px, inclusi menu, grafici, moduli, finestre, contrasto, avvio scuro e aggiornamento tra due schede. I test GitHub usano risposte simulate e due archivi di dispositivo; non equivalgono a una prova interattiva con token reale. Prima di inserire dati importanti, completa questa verifica con la demo su due browser/dispositivi:
 
 - Creare e modificare elementi, cambiare stati e sottoattività; controllare i filtri.
 - Salvare e recuperare da due dispositivi, unire elementi diversi e scegliere entrambe le opzioni di un conflitto sullo stesso elemento.
@@ -99,6 +101,7 @@ La build TypeScript deve passare. I test GitHub usano risposte simulate e due ar
 - `src/App.tsx`: navigazione e moduli principali.
 - `src/forms.tsx`, `src/Import.tsx`, `src/Settings.tsx`: inserimento, importazione e gestione dati.
 - `src/components.tsx`, `src/styles.css`: componenti accessibili, grafici SVG e layout adattivo.
+- `src/theme.ts`, `src/theme.css`: preferenza locale e palette; `index.html` applica il tema prima del caricamento di React.
 - `tests/`: test di dominio, persistenza, sincronizzazione e percorsi React.
 
 I font DM Sans e Manrope sono distribuiti con licenza SIL Open Font License, inclusa in `public/fonts/`. Le icone provengono da Lucide. Non sono inclusi contabilità fiscale, banche automatiche, AI, allegati, calendario o rilevazione ore.
