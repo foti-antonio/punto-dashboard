@@ -255,10 +255,10 @@ describe('confronto a tre vie', () => {
     const result = mergeData(base, local, remote);
     expect(result.conflicts.map((c) => c.id)).toContain('a');
     expect(() =>
-      resolveMerge(result.data, result.conflicts, { a: 'local' }),
+      resolveMerge(result.data, result.conflicts, { a: 'local', t: 'remote' }),
     ).toThrow(/conto eliminato/);
     expect(() =>
-      resolveMerge(result.data, result.conflicts, { a: 'remote' }),
+      resolveMerge(result.data, result.conflicts, { a: 'remote', t: 'remote' }),
     ).not.toThrow();
   });
   it('riconosce impostazioni equivalenti anche con chiavi in ordine diverso', () => {

@@ -429,25 +429,33 @@ export function mergeData(base: Data | null, local: Data, remote: Data) {
         account.deletedAt ||
         account.scope !== e.scope ||
         account.openingDate > e.date
-      )
+      ) {
         dependencyConflict(e.accountId);
+        dependencyConflict(e.id);
+      }
       if (e.type === 'transaction' && e.direction === 'transfer') {
         const target = entities[e.toAccountId] as Account | undefined;
-        if (!target || target.deletedAt || target.openingDate > e.date)
+        if (!target || target.deletedAt || target.openingDate > e.date) {
           dependencyConflict(e.toAccountId);
+          dependencyConflict(e.id);
+        }
       }
       if (
         e.projectId &&
         (entities[e.projectId] as Project | undefined)?.scope !== e.scope
-      )
+      ) {
         dependencyConflict(e.projectId);
+        dependencyConflict(e.id);
+      }
     }
     if (
       e.type === 'task' &&
       e.projectId &&
       (entities[e.projectId] as Project | undefined)?.scope !== e.scope
-    )
+    ) {
       dependencyConflict(e.projectId);
+      dependencyConflict(e.id);
+    }
   }
   return { data: { schemaVersion: 1 as const, entities }, conflicts };
 }
@@ -462,7 +470,12 @@ export function resolveMerge(
       throw new Error('Scegli una versione per ogni conflitto.');
     const choice = c[choices[c.id]];
     if (choice) result.entities[c.id] = choice;
-    else delete result.entities[c.id];
+    else
+      result.entities[c.id] = {
+        ...(c.local ?? c.remote)!,
+        deletedAt: stamp(),
+        updatedAt: stamp(),
+      };
   }
   return validateData(result);
 }
@@ -638,7 +651,8 @@ export function validateData(input: unknown): Data {
           !one(e.status, ['todo', 'doing', 'done']) ||
           !one(e.priority, ['alta', 'media', 'bassa']) ||
           !reference(e.projectId, 'project') ||
-          (e.projectId &&
+          (!e.deletedAt &&
+            e.projectId &&
             (data.entities[e.projectId] as Project).scope !== e.scope) ||
           !Array.isArray(e.subtasks) ||
           !e.subtasks.every(
@@ -669,11 +683,12 @@ export function validateData(input: unknown): Data {
           return bad(
             'un movimento attivo fa riferimento a un conto eliminato. Risolvi il conflitto conservando il conto.',
           );
-        if (e.date < a.openingDate || e.scope !== a.scope)
+        if (!e.deletedAt && (e.date < a.openingDate || e.scope !== a.scope))
           return bad(
             'data precedente al saldo iniziale o ambito diverso dal conto.',
           );
         if (
+          !e.deletedAt &&
           e.projectId &&
           (data.entities[e.projectId] as Project).scope !== e.scope
         )
@@ -689,8 +704,9 @@ export function validateData(input: unknown): Data {
                 e.projectId ||
                 e.categoryId ||
                 e.forecastKey ||
-                e.date <
-                  (data.entities[e.toAccountId] as Account).openingDate ||
+                (!e.deletedAt &&
+                  e.date <
+                    (data.entities[e.toAccountId] as Account).openingDate) ||
                 (!e.deletedAt && data.entities[e.toAccountId].deletedAt)))
           )
             return bad(
