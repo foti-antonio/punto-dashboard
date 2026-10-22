@@ -266,6 +266,7 @@ strong {
 }
 .sidebar {
   width: 227px;
+  overflow-y: auto;
   background: var(--surface);
   border-right: 1px solid var(--border);
   position: fixed;
@@ -366,6 +367,7 @@ strong {
 .sidebar-bottom {
   margin-top: auto;
   padding-top: 50px;
+  flex-shrink: 0;
 }
 .sidebar-note {
   position: relative;
@@ -382,6 +384,10 @@ strong {
   color: var(--muted);
   margin-bottom: 13px;
 }
+.sidebar-note blockquote {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .sidebar-note strong {
   font-family: 'Manrope', sans-serif;
   line-height: 1.65;
@@ -389,7 +395,7 @@ strong {
   position: relative;
   z-index: 1;
 }
-.sidebar-note p {
+.sidebar-note figcaption {
   font-size: 10px;
   line-height: 1.7;
   color: var(--muted);
@@ -406,6 +412,7 @@ strong {
   bottom: 9px;
   transform: rotate(8deg);
   color: var(--decoration);
+  opacity: 0.2;
   font-weight: 400;
 }
 .profile {
@@ -4083,7 +4090,7 @@ tbody tr:hover {
 .eyebrow {
   color: var(--muted);
 }
-.sidebar-note p {
+.sidebar-note figcaption {
   color: var(--muted);
 }
 .profile small {

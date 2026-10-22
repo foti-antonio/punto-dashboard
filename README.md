@@ -80,6 +80,16 @@ Ricorrenze singole, settimanali, mensili e annuali; le date mensili conservano i
 
 Ogni occorrenza è identificata da previsione e indice stabile della ricorrenza: modificare la data di partenza non fa ricomparire le occorrenze già registrate. **Registra** apre un movimento effettivo collegato: dopo la conferma, quell’occorrenza viene esclusa dalla previsione, anche negli scenari. Eliminare il movimento effettivo riapre l’occorrenza. Una stessa occorrenza non può avere due movimenti attivi collegati. Gli scenari salvano variazioni per occorrenza (data, importo, esclusione) e non cambiano movimenti reali o regole di base. La tabella mostra fino a 150 occorrenze, ma i calcoli includono tutte quelle nell’orizzonte.
 
+## Citazione del giorno
+
+La barra laterale mostra una breve citazione stoica in italiano con il nome
+dell’autore. Le 30 citazioni di Marco Aurelio, Seneca ed Epitteto sono traduzioni
+proprie, con [riferimenti ai testi originali](docs/stoic-quotes.md). La selezione è
+uguale su tutti i dispositivi nella stessa giornata di `Europe/Rome`, cambia
+ogni giorno senza ripetizioni consecutive e si aggiorna anche lasciando l’app
+aperta o tornando nella scheda. Funziona interamente in locale, senza API o
+impostazioni aggiuntive.
+
 ## Verifica
 
 `npm test` verifica importi e saldi, trasferimenti, ricorrenze e date, riconciliazione, scenari, CSV errati e duplicati, merge a tre vie e conflitti, SHA e race, recupero dopo errori di rete e token scaduti, cifratura, persistenza IndexedDB, revisioni e backup. Include percorsi React con DOM simulato: creazione collegata di conto/progetto/attività/movimento, aggiornamento di panoramica e analisi, trasferimenti, registrazione previsioni e navigazione. I test del tema coprono avvio prima di React, valori non validi, persistenza, cambiamenti del sistema, eventi tra schede, storage bloccato e selezione da tastiera senza modificare i dati.

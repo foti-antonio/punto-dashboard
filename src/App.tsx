@@ -27,7 +27,6 @@ import {
   Pencil,
   GitBranch,
   HardDrive,
-  Leaf,
   Archive,
   Download,
   Target,
@@ -75,6 +74,7 @@ import {
 } from './components';
 import { SettingsPage, type SyncIndicator } from './Settings';
 import { ImportDialog } from './Import';
+import { DailyQuote } from './DailyQuote';
 type Page =
   | 'overview'
   | 'projects'
@@ -246,24 +246,7 @@ export function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span className="note-icon">
-              <Leaf size={18} />
-            </span>
-            <strong>
-              Piccoli passi.
-              <br />
-              Una visione più grande.
-            </strong>
-            <p>
-              Il tuo futuro si costruisce
-              <br />
-              un giorno alla volta.
-            </p>
-            <span className="note-decoration" aria-hidden="true">
-              ↗
-            </span>
-          </div>
+          <DailyQuote />
           <button
             className={`nav-item ${page === 'settings' ? 'active' : ''}`}
             onClick={() => navigate('settings')}

@@ -95,6 +95,26 @@ async function add(user: ReturnType<typeof userEvent.setup>, label: string) {
   return within(screen.getByRole('dialog'));
 }
 describe('percorsi utente nei componenti React', () => {
+  it('mostra la citazione giornaliera anche nel menu mobile', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const quote = screen.getByRole('figure', {
+      name: 'Citazione stoica del giorno',
+    });
+    const original = quote.textContent;
+    expect(quote.closest('aside')).toBeTruthy();
+    expect(screen.queryByText('Piccoli passi.')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Apri menu' }));
+    expect(quote.closest('aside')?.classList.contains('mobile-open')).toBe(
+      true,
+    );
+    expect(quote.textContent).toBe(original);
+    await user.click(screen.getByRole('button', { name: 'Chiudi menu' }));
+    expect(quote.closest('aside')?.classList.contains('mobile-open')).toBe(
+      false,
+    );
+  });
+
   it('cambia tema con mouse e tastiera senza modificare dati o sincronizzazione', async () => {
     const user = userEvent.setup();
     render(<Harness initial={demoData()} />);
