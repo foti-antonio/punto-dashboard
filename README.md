@@ -2,7 +2,50 @@
 
 Una dashboard personale in italiano per progetti, attività e risorse economiche. Applicazione statica React + TypeScript + Vite: nessun server applicativo, nessun servizio di analisi o collegamento bancario.
 
-## Avvio da un clone pulito
+## Avvio locale con Docker
+
+Richiede Docker Engine e Docker Compose. Non serve installare Node.js o avviare npm sul computer: l’immagine compila l’app con Node 22 e distribuisce i soli file di produzione tramite Nginx.
+
+Dalla directory del progetto, abilita Docker all’avvio del computer (una sola volta) e costruisci e avvia Punto:
+
+```bash
+sudo systemctl enable --now docker
+sudo docker compose up -d --build
+```
+
+Apri **http://localhost:5173**. La porta è pubblicata soltanto su `127.0.0.1`, quindi l’app è accessibile solo da questo PC. Libera la porta se è già occupata da Vite o da un altro processo. Nginx applica gli stessi header di sicurezza di `public/_headers`, riportati in `nginx.conf`.
+
+Con `restart: unless-stopped`, Punto riparte quando si avvia Docker, anche dopo un riavvio del computer. Un arresto manuale rimane valido anche dopo il riavvio; per riattivarlo usa `sudo docker compose start`. Non servono database o volumi Docker: i dati restano nel browser.
+
+Comandi da eseguire nella directory del progetto:
+
+```bash
+# Stato
+sudo docker compose ps
+
+# Log (Ctrl+C interrompe solo la visualizzazione)
+sudo docker compose logs -f --tail=100
+
+# Arresto manuale
+sudo docker compose stop
+
+# Ripresa dopo un arresto manuale
+sudo docker compose start
+
+# Aggiornamento dopo aver modificato o scaricato il codice
+sudo docker compose up -d --build
+
+# Validazione della configurazione
+docker compose config --quiet
+```
+
+Il normale utilizzo richiede soltanto il browser. Le modifiche al codice richiedono una nuova build; dipendenze, build locali, Git e file di ambiente sono esclusi dal contesto tramite `.dockerignore`. I comandi usano `sudo` senza modificare i gruppi dell’utente.
+
+Mantieni esattamente **http://localhost:5173** per riutilizzare i dati del normale avvio Vite sulla stessa origine e nello stesso profilo browser. `http://127.0.0.1:5173`, una porta diversa o un sito HTTPS hanno archivi distinti: se cambi indirizzo, esporta prima i dati dal vecchio e importali nel nuovo. Su localhost è disponibile anche Web Crypto per la cifratura del collegamento GitHub.
+
+Riferimenti: [riavvio automatico dei container](https://docs.docker.com/engine/containers/start-containers-automatically/), [servizio e permessi Docker su Linux](https://docs.docker.com/engine/install/linux-postinstall/).
+
+## Sviluppo da un clone pulito
 
 Richiede Node.js **22.12 o successivo** e npm. Dipendenze esatte e `package-lock.json` sono inclusi.
 

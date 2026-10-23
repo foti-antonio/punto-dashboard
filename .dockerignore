@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+.git
+.github
+.openai
+**/.env
+**/.env.*
+**/*.local
+**/.npmrc
+**/*.tsbuildinfo
+**/*.log
+coverage
+playwright-report
+test-results
+.DS_Store
+*.tar.gz
+*.tgz
