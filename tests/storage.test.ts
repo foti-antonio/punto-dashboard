@@ -41,9 +41,7 @@ describe('archivio IndexedDB', () => {
   });
   it('non sovrascrive una revisione più recente', async () => {
     await storage.mutateData((d) => d);
-    await expect(storage.mutateData(() => fixture(), 1)).rejects.toThrow(
-      /scheda/,
-    );
+    await expect(storage.mutateData(() => fixture(), 1)).rejects.toThrow(/tab/);
     expect((await storage.loadState()).revision).toBe(2);
   });
   it('conserva le ultime cinque copie prima del ripristino', async () => {

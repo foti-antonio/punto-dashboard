@@ -1,3 +1,12 @@
+import {
+  msg,
+  LocalizedError,
+  toMessage,
+  messageText,
+  type Message,
+  tr,
+  useLanguage,
+} from './i18n';
 import { useMemo, useState } from 'react';
 import { Upload, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useApp } from './context';
@@ -5,11 +14,12 @@ import { Dialog, Field, CategoryOptions } from './components';
 import { parseCSV, previewCSV, signature, type CSVMapping } from './csv';
 import { euro, list, validateData } from './domain';
 export function ImportDialog({ onClose }: { onClose: () => void }) {
+  useLanguage();
   const { data, update, toast } = useApp();
   const [text, setText] = useState(''),
     [delimiter, setDelimiter] = useState(';'),
     [filename, setFilename] = useState(''),
-    [error, setError] = useState(''),
+    [error, setError] = useState<Message>(''),
     [stage, setStage] = useState(1),
     [includeDuplicates, setIncludeDuplicates] = useState(false),
     [busy, setBusy] = useState(false);
@@ -28,7 +38,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
     try {
       return { rows: text ? parseCSV(text, delimiter) : [], error: '' };
     } catch (e) {
-      return { rows: [], error: (e as Error).message };
+      return { rows: [], error: toMessage(e) };
     }
   }, [text, delimiter]);
   const preview = useMemo(
@@ -49,7 +59,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
     setError('');
     try {
       if (!accepted.length)
-        throw new Error('Nessuna riga valida da importare.');
+        throw new LocalizedError(msg('Nessuna riga valida da importare.'));
       await update((d) => {
         const existing = new Set(list(d, 'transaction').map(signature));
         for (const r of accepted) {
@@ -60,33 +70,36 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
         }
         return validateData(d);
       });
-      toast('Importazione completata. Le righe non valide sono state escluse.');
+      toast(
+        msg('Importazione completata. Le righe non valide sono state escluse.'),
+      );
       onClose();
     } catch (e) {
-      setError((e as Error).message);
+      setError(toMessage(e));
     } finally {
       setBusy(false);
     }
   }
   return (
-    <Dialog title="Importa movimenti da CSV" onClose={onClose} wide>
+    <Dialog title={tr('Importa movimenti da CSV')} onClose={onClose} wide>
       <div className="import-steps">
         <span className={stage === 1 ? 'selected' : ''}>
-          1. Scegli e configura
+          {tr('1. Scegli e configura')}
         </span>
         <ArrowRight size={15} />
         <span className={stage === 2 ? 'selected' : ''}>
-          2. Controlla e conferma
+          {tr('2. Controlla e conferma')}
         </span>
       </div>
       <p className="muted">
-        Il file deve contenere una riga di intestazioni. L’anteprima non
-        modifica i tuoi dati.
+        {tr(
+          'Il file deve contenere una riga di intestazioni. L’anteprima non modifica i tuoi dati.',
+        )}
       </p>
       <label className="upload-zone">
         <Upload size={25} />
-        <strong>{filename || 'Scegli un file CSV'}</strong>
-        <span>Massimo 5 MB · fino a 10.000 movimenti</span>
+        <strong>{filename || tr('Scegli un file CSV')}</strong>
+        <span>{tr('Massimo 5 MB · fino a 10.000 movimenti')}</span>
         <input
           type="file"
           accept=".csv,text/csv,text/plain"
@@ -95,7 +108,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
             if (!file) return;
             setError('');
             if (file.size > 5000000) {
-              setError('Il file supera 5 MB.');
+              setError(msg('Il file supera 5 MB.'));
               return;
             }
             try {
@@ -104,13 +117,13 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
               setFilename(file.name);
               setStage(1);
             } catch {
-              setError('Impossibile leggere il file.');
+              setError(msg('Impossibile leggere il file.'));
             }
           }}
         />
       </label>
       <div className="form-grid csv-config">
-        <Field label="Separatore delle colonne">
+        <Field label={tr('Separatore delle colonne')}>
           <select
             value={delimiter}
             onChange={(e) => {
@@ -118,17 +131,17 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
               setStage(1);
             }}
           >
-            <option value=";">Punto e virgola (;)</option>
-            <option value=",">Virgola (,)</option>
-            <option value="\t">Tabulazione</option>
+            <option value=";">{tr('Punto e virgola (;)')}</option>
+            <option value=",">{tr('Virgola (,)')}</option>
+            <option value="\t">{tr('Tabulazione')}</option>
           </select>
         </Field>
-        <Field label="Conto di destinazione">
+        <Field label={tr('Conto di destinazione')}>
           <select
             value={mapping.accountId}
             onChange={(e) => map({ accountId: e.target.value })}
           >
-            <option value="">Scegli un conto</option>
+            <option value="">{tr('Scegli un conto')}</option>
             {list(data, 'account').map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -143,9 +156,9 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                 key={key}
                 label={
                   [
-                    'Colonna della data',
-                    'Colonna della descrizione',
-                    'Colonna dell’importo',
+                    tr('Colonna della data'),
+                    tr('Colonna della descrizione'),
+                    tr('Colonna dell’importo'),
                   ][i]
                 }
               >
@@ -155,33 +168,37 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                 >
                   {parsed.rows[0].map((header, j) => (
                     <option key={j} value={j}>
-                      {header || `Colonna ${j + 1}`}
+                      {header || tr('Colonna {number}', { number: j + 1 })}
                     </option>
                   ))}
                 </select>
               </Field>
             ))}
-            <Field label="Formato della data">
+            <Field label={tr('Formato della data')}>
               <select
                 value={mapping.format}
                 onChange={(e) =>
                   map({ format: e.target.value as CSVMapping['format'] })
                 }
               >
-                <option value="dmy">Giorno/mese/anno · 31/12/2026</option>
-                <option value="ymd">Anno-mese-giorno · 2026-12-31</option>
+                <option value="dmy">
+                  {tr('Giorno/mese/anno · 31/12/2026')}
+                </option>
+                <option value="ymd">
+                  {tr('Anno-mese-giorno · 2026-12-31')}
+                </option>
               </select>
             </Field>
-            <Field label="Separatore decimale">
+            <Field label={tr('Separatore decimale')}>
               <select
                 value={mapping.decimal}
                 onChange={(e) => map({ decimal: e.target.value as ',' | '.' })}
               >
-                <option value=",">Virgola · 1.234,56</option>
-                <option value=".">Punto · 1,234.56</option>
+                <option value=",">{tr('Virgola · 1.234,56')}</option>
+                <option value=".">{tr('Punto · 1,234.56')}</option>
               </select>
             </Field>
-            <Field label="Interpretazione degli importi">
+            <Field label={tr('Interpretazione degli importi')}>
               <select
                 value={mapping.direction}
                 onChange={(e) =>
@@ -189,13 +206,13 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                 }
               >
                 <option value="signed">
-                  Positivo = entrata, negativo = uscita
+                  {tr('Positivo = entrata, negativo = uscita')}
                 </option>
-                <option value="expense">Tutti come uscite</option>
-                <option value="income">Tutti come entrate</option>
+                <option value="expense">{tr('Tutti come uscite')}</option>
+                <option value="income">{tr('Tutti come entrate')}</option>
               </select>
             </Field>
-            <Field label="Categoria">
+            <Field label={tr('Categoria')}>
               <select
                 value={mapping.categoryId}
                 onChange={(e) => map({ categoryId: e.target.value })}
@@ -209,12 +226,12 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
       {(error || parsed.error) && (
         <p className="inline-error" role="alert">
           <AlertCircle size={17} />
-          {error || parsed.error}
+          {messageText(error || parsed.error)}
         </p>
       )}
       {stage === 1 && parsed.rows.length > 0 && (
         <div className="table-scroll raw-preview">
-          <h3>Prime righe del file</h3>
+          <h3>{tr('Prime righe del file')}</h3>
           <table>
             <thead>
               <tr>
@@ -240,15 +257,18 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           <div className="import-summary">
             <span>
               <CheckCircle2 size={17} />
-              {accepted.length} da importare
+              {tr('{count} da importare', { count: accepted.length })}
             </span>
-            <span>{errors.length} non valide</span>
-            <span>{duplicates.length} possibili duplicati</span>
+            <span>{tr('{count} non valide', { count: errors.length })}</span>
+            <span>
+              {tr('{count} possibili duplicati', { count: duplicates.length })}
+            </span>
           </div>
           {errors.length > 0 && (
             <p className="notice amber">
-              Le righe non valide saranno escluse. Correggi il file per
-              importarle in seguito.
+              {tr(
+                'Le righe non valide saranno escluse. Correggi il file per importarle in seguito.',
+              )}
             </p>
           )}
           {duplicates.length > 0 && (
@@ -258,19 +278,20 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                 checked={includeDuplicates}
                 onChange={(e) => setIncludeDuplicates(e.target.checked)}
               />
-              Includi anche i possibili duplicati (esclusi per impostazione
-              iniziale)
+              {tr(
+                'Includi anche i possibili duplicati (esclusi per impostazione iniziale)',
+              )}
             </label>
           )}
           <div className="table-scroll import-preview">
             <table>
               <thead>
                 <tr>
-                  <th>Riga</th>
-                  <th>Descrizione</th>
-                  <th>Data</th>
-                  <th className="number">Importo</th>
-                  <th>Esito</th>
+                  <th>{tr('Riga')}</th>
+                  <th>{tr('Descrizione')}</th>
+                  <th>{tr('Data')}</th>
+                  <th className="number">{tr('Importo')}</th>
+                  <th>{tr('Esito')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -291,8 +312,10 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                             : 'positive'
                       }
                     >
-                      {r.error ||
-                        (r.duplicate ? 'Possibile duplicato' : 'Valida')}
+                      {(r.error && messageText(r.error)) ||
+                        (r.duplicate
+                          ? tr('Possibile duplicato')
+                          : tr('Valida'))}
                     </td>
                   </tr>
                 ))}
@@ -301,15 +324,17 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           </div>
           {preview.length > 200 && (
             <p className="form-hint">
-              Mostrate 200 righe; il controllo include tutte le {preview.length}{' '}
-              righe.
+              {tr(
+                'Mostrate 200 righe; il controllo include tutte le {count} righe.',
+                { count: preview.length },
+              )}
             </p>
           )}
         </>
       )}
       <div className="dialog-actions">
         <button className="button secondary" onClick={onClose}>
-          Annulla
+          {tr('Annulla')}
         </button>
         {stage === 1 ? (
           <button
@@ -321,14 +346,14 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
               if (
                 new Set([mapping.date, mapping.name, mapping.amount]).size !== 3
               ) {
-                setError('Scegli tre colonne diverse.');
+                setError(msg('Scegli tre colonne diverse.'));
                 return;
               }
               setError('');
               setStage(2);
             }}
           >
-            Mostra anteprima
+            {tr('Mostra anteprima')}
             <ArrowRight size={16} />
           </button>
         ) : (
@@ -337,7 +362,9 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
             disabled={busy || !accepted.length}
             onClick={importRows}
           >
-            {busy ? 'Importazione…' : `Conferma ${accepted.length} movimenti`}
+            {busy
+              ? tr('Importazione…')
+              : tr('Conferma {count} movimenti', { count: accepted.length })}
           </button>
         )}
       </div>

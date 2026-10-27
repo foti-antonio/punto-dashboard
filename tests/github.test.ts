@@ -1,3 +1,4 @@
+import { setLanguage, translate } from '../src/i18n';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { fixture, transaction } from './fixtures';
 import {
@@ -51,6 +52,7 @@ let serverData: Data | null,
   version: number,
   requests: { url: string; method: string; body?: Record<string, unknown> }[];
 beforeEach(() => {
+  setLanguage('en');
   memory.values.clear();
   memory.state = { data: fixture(), revision: 1 };
   serverData = null;
@@ -109,7 +111,7 @@ describe('collegamento e vault', () => {
   it('rifiuta password errata e manomissioni della configurazione', async () => {
     const vault = await encryptToken('token', 'password-locale-sicura', config);
     await expect(decryptToken(vault, 'password-errata')).rejects.toThrow(
-      /Password/,
+      /password/,
     );
     await expect(
       decryptToken(
@@ -120,11 +122,11 @@ describe('collegamento e vault', () => {
   });
   it('non accetta repository pubbliche', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(Response.json({ private: false }));
-    await expect(verifyRepo(config, 'token')).rejects.toThrow(/privata/);
+    await expect(verifyRepo(config, 'token')).rejects.toThrow(/private/);
   });
   it('riconosce token scaduti', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(Response.json({}, { status: 401 }));
-    await expect(verifyRepo(config, 'token')).rejects.toThrow(/scaduto/);
+    await expect(verifyRepo(config, 'token')).rejects.toThrow(/Expired/);
   });
 });
 describe('sincronizzazione', () => {
@@ -165,7 +167,7 @@ describe('sincronizzazione', () => {
     serverSha = 'sha-remote';
     const plan = await prepareSync(config, 'token');
     expect(plan.conflicts).toHaveLength(1);
-    await expect(finishSync(plan, {}, 'token', true)).rejects.toThrow(/Scegli/);
+    await expect(finishSync(plan, {}, 'token', true)).rejects.toThrow(/Choose/);
     await finishSync(plan, { a: 'remote' }, 'token', true);
     expect((memory.state.data!.entities.a as Account).name).toBe('Remoto');
   });
@@ -175,7 +177,7 @@ describe('sincronizzazione', () => {
     const local = structuredClone(memory.state.data!);
     const plan = await prepareSync(config, 'token');
     serverSha = 'sha-raced';
-    await expect(finishSync(plan, {}, 'token', true)).rejects.toThrow(/remota/);
+    await expect(finishSync(plan, {}, 'token', true)).rejects.toThrow(/remote/);
     expect(memory.state.data).toEqual(local);
     expect(requests.at(-1)?.body?.sha).toBe(plan.sha);
   });
@@ -183,7 +185,7 @@ describe('sincronizzazione', () => {
     const plan = await prepareSync(config, 'token');
     memory.state.revision++;
     await expect(finishSync(plan, {}, 'token', true)).rejects.toThrow(
-      /cambiati/,
+      /changed/,
     );
     expect(requests.filter((r) => r.method === 'PUT')).toHaveLength(0);
   });
@@ -192,9 +194,7 @@ describe('sincronizzazione', () => {
     const before = structuredClone(memory.state);
     const base = await getBase(config);
     vi.mocked(fetch).mockRejectedValue(new TypeError('offline'));
-    await expect(prepareSync(config, 'token')).rejects.toThrow(
-      /non raggiungibile/,
-    );
+    await expect(prepareSync(config, 'token')).rejects.toThrow(/unreachable/);
     expect(memory.state).toEqual(before);
     expect(await getBase(config)).toEqual(base);
   });
@@ -217,7 +217,44 @@ describe('sincronizzazione', () => {
     await finishSync(await prepareSync(config, 'token'), {}, 'token', true);
     const before = structuredClone(memory.state);
     serverData = null;
-    await expect(prepareSync(config, 'token')).rejects.toThrow(/rimosso/);
+    await expect(prepareSync(config, 'token')).rejects.toThrow(/removed/);
     expect(memory.state).toEqual(before);
   });
+});
+
+describe('language-independent sync', () => {
+  it('keeps the base, existing names and JSON unchanged when switching language between comparisons', async () => {
+    await finishSync(await prepareSync(config, 'token'), {}, 'token', true);
+    const before = structuredClone(memory.state);
+    const base = await getBase(config);
+    const english = await prepareSync(config, 'token');
+    setLanguage('it');
+    const italian = await prepareSync(config, 'token');
+    expect(italian).toEqual(english);
+    await finishSync(italian, {}, 'token', true);
+    expect(memory.state).toEqual(before);
+    expect((await getBase(config))?.data).toEqual(base?.data);
+    expect(serverData).toEqual(before.data);
+    expect(requests.filter((r) => r.method === 'PUT')).toHaveLength(1);
+    expect(JSON.stringify(serverData)).not.toMatch(/punto-language|"language"/);
+    setLanguage('en');
+  });
+  it.each(['en', 'it'] as const)(
+    'reports an expired token in %s without changing local data',
+    async (language) => {
+      setLanguage(language);
+      const before = structuredClone(memory.state);
+      vi.mocked(fetch).mockResolvedValueOnce(
+        Response.json({}, { status: 401 }),
+      );
+      await expect(prepareSync(config, 'token')).rejects.toThrow(
+        translate(
+          language,
+          'Token scaduto o non valido. Riconfigura il collegamento GitHub.',
+        ),
+      );
+      expect(memory.state).toEqual(before);
+      setLanguage('en');
+    },
+  );
 });

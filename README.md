@@ -1,6 +1,6 @@
 # Punto
 
-Una dashboard personale in italiano per progetti, attività e risorse economiche. Applicazione statica React + TypeScript + Vite: nessun server applicativo, nessun servizio di analisi o collegamento bancario.
+Una dashboard personale per progetti, attività e risorse economiche, con inglese predefinito e italiano selezionabile. Applicazione statica React + TypeScript + Vite: nessun server applicativo, nessun servizio di analisi o collegamento bancario.
 
 ## Avvio locale con Docker
 
@@ -70,7 +70,7 @@ Il manifest Sites è [`.openai/hosting.json`](.openai/hosting.json). Quando tras
 
 ## Primo utilizzo
 
-1. In **Impostazioni** inserisci il tuo nome. La valuta è EUR e il fuso è Europe/Rome.
+1. In **Settings → Language** puoi scegliere **Italiano**; le indicazioni seguenti usano le etichette italiane. In **Impostazioni** inserisci il tuo nome. La valuta è EUR e il fuso è Europe/Rome.
 2. Aggiungi un **conto**, con saldo iniziale e data di partenza. I movimenti successivi devono essere dalla stessa data in avanti. Il saldo iniziale è precedente a tutti i movimenti di quella giornata.
 3. Crea un progetto e collega attività, incassi e spese. Il risultato del progetto è la differenza tra i movimenti registrati e non ha significato fiscale.
 4. Registra i movimenti reali in **Finanze** e quelli futuri in **Previsioni**. I trasferimenti aggiornano entrambi i conti senza entrare nelle entrate o nelle uscite.
@@ -79,6 +79,14 @@ Il manifest Sites è [`.openai/hosting.json`](.openai/hosting.json). Quando tras
 Ogni modifica viene salvata in IndexedDB prima di chiudere il relativo modulo. Se il salvataggio fallisce, la finestra rimane aperta con l’errore. La persistenza dipende dal profilo browser e dall’origine: localhost, sito pubblicato e altro hosting hanno archivi distinti. Cambiare browser, usare una finestra privata o cancellare i dati del sito può rendere indisponibile la copia locale. Esporta i dati o salvali su GitHub prima di spostarti.
 
 In **Impostazioni → Aspetto** scegli **Chiaro**, **Scuro** o **Sistema**. Il cambio è immediato; al primo accesso Punto segue il tema del dispositivo, inclusi i suoi cambiamenti. La preferenza è salvata in `localStorage` con chiave `punto-theme` e aggiorna le altre schede aperte. Se il browser impedisce il salvataggio, viene applicata alla sessione con un avviso. Il tema è separato dai dati: esportazioni, backup, ripristino, demo e sincronizzazione GitHub non lo modificano.
+
+## Lingua e formati
+
+Punto parte in **English**, anche su un’installazione esistente senza preferenza salvata. In **Settings → Language** (oppure **Impostazioni → Lingua**) scegli **English / Italiano**. Il cambio è immediato, aggiorna le altre schede aperte, i testi accessibili, il titolo e la descrizione della pagina. La scelta viene salvata in `localStorage` con chiave `punto-language`; se il browser blocca lo storage, resta valida nella sessione e appare un avviso nelle impostazioni. Un valore assente o non valido usa l’inglese, indipendentemente dalla lingua del browser.
+
+Date e numeri seguono `en-GB` o `it-IT`. La valuta resta **EUR** e il fuso **Europe/Rome**. Nei moduli monetari il punto è decimale in inglese e la virgola in italiano; cambiando lingua con un modulo aperto vengono convertiti insieme separatori decimali e delle migliaia, conservando il significato degli importi digitati, anche incompleti. Il CSV mantiene sempre le proprie opzioni esplicite di separatore e formato della data.
+
+La preferenza è locale ed esclusa da esportazioni, backup e sincronizzazione GitHub. Cambiarla non modifica nomi, note, descrizioni, categorie o demo già salvati. Nuove demo e categorie iniziali vengono create nella lingua selezionata; un ripristino conserva i testi del file. Schema JSON, identificativi, stati, priorità e ambiti interni restano invariati. Le strutture vuote usate come base della sincronizzazione sono indipendenti dalla lingua.
 
 ## Repository separate e GitHub
 
@@ -125,17 +133,19 @@ Ogni occorrenza è identificata da previsione e indice stabile della ricorrenza:
 
 ## Citazione del giorno
 
-La barra laterale mostra una breve citazione stoica in italiano con il nome
-dell’autore. Le 30 citazioni di Marco Aurelio, Seneca ed Epitteto sono traduzioni
+La barra laterale mostra una breve citazione stoica nella lingua selezionata con il nome
+dell’autore e il riferimento tradotti. Le 30 citazioni di Marco Aurelio, Seneca ed Epitteto sono traduzioni
 proprie, con [riferimenti ai testi originali](docs/stoic-quotes.md). La selezione è
-uguale su tutti i dispositivi nella stessa giornata di `Europe/Rome`, cambia
+uguale nelle due lingue e su tutti i dispositivi nella stessa giornata di `Europe/Rome`, cambia
 ogni giorno senza ripetizioni consecutive e si aggiorna anche lasciando l’app
 aperta o tornando nella scheda. Funziona interamente in locale, senza API o
 impostazioni aggiuntive.
 
 ## Verifica
 
-`npm test` verifica importi e saldi, trasferimenti, ricorrenze e date, riconciliazione, scenari, CSV errati e duplicati, merge a tre vie e conflitti, SHA e race, recupero dopo errori di rete e token scaduti, cifratura, persistenza IndexedDB, revisioni e backup. Include percorsi React con DOM simulato: creazione collegata di conto/progetto/attività/movimento, aggiornamento di panoramica e analisi, trasferimenti, registrazione previsioni e navigazione. I test del tema coprono avvio prima di React, valori non validi, persistenza, cambiamenti del sistema, eventi tra schede, storage bloccato e selezione da tastiera senza modificare i dati.
+`npm test` verifica importi e saldi, trasferimenti, ricorrenze e date, riconciliazione, scenari, CSV errati e duplicati, merge a tre vie e conflitti, SHA e race, recupero dopo errori di rete e token scaduti, cifratura, persistenza IndexedDB, revisioni e backup. Include percorsi React in entrambe le lingue con DOM simulato: creazione collegata di conto/progetto/attività/movimento, aggiornamento di panoramica e analisi, trasferimenti, registrazione previsioni e navigazione. I test del tema coprono avvio prima di React, valori non validi, persistenza, cambiamenti del sistema, eventi tra schede, storage bloccato e selezione da tastiera senza modificare i dati.
+
+I test della lingua coprono default inglese, preferenza persistente e storage bloccato, eventi tra schede, completezza dei dizionari, citazioni e demo localizzate, errori già aperti, importi durante il cambio lingua e opzioni CSV invariate. Verificano inoltre che la lingua non modifichi i dati esportati o sincronizzati.
 
 La build TypeScript deve passare. I temi sono stati verificati in Chromium con dati demo sulle sette pagine a 1440 e 390 px, inclusi menu, grafici, moduli, finestre, contrasto, avvio scuro e aggiornamento tra due schede. I test GitHub usano risposte simulate e due archivi di dispositivo; non equivalgono a una prova interattiva con token reale. Prima di inserire dati importanti, completa questa verifica con la demo su due browser/dispositivi:
 
@@ -154,6 +164,9 @@ La build TypeScript deve passare. I temi sono stati verificati in Chromium con d
 - `src/App.tsx`: navigazione e moduli principali.
 - `src/forms.tsx`, `src/Import.tsx`, `src/Settings.tsx`: inserimento, importazione e gestione dati.
 - `src/components.tsx`, `src/styles.css`: componenti accessibili, grafici SVG e layout adattivo.
+- `src/i18n.ts`, `src/locales/`: lingua locale, hook reattivo, messaggi tipizzati, parametri e dizionari.
+- `src/MoneyInput.tsx`: input monetari che conservano il valore al cambio lingua.
+- `src/quotes.ts`: raccolta bilingue con identità e ordine giornaliero comuni.
 - `src/theme.ts`, `src/theme.css`: preferenza locale e palette; `index.html` applica il tema prima del caricamento di React.
 - `tests/`: test di dominio, persistenza, sincronizzazione e percorsi React.
 

@@ -1,3 +1,14 @@
+import {
+  msg,
+  LocalizedError,
+  type Message,
+  tr,
+  locale,
+  decimalSeparator,
+  getLanguage,
+  translate,
+  type Language,
+} from './i18n';
 export type Scope = 'personale' | 'lavoro';
 export type Kind =
   | 'account'
@@ -147,42 +158,48 @@ export function shiftMonth(date: string, count: number) {
   return d.toISOString().slice(0, 10);
 }
 export const euro = (cents: number) =>
-  new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(
-    cents / 100,
-  );
+  new Intl.NumberFormat(locale(), {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(cents / 100);
 export const compactEuro = (cents: number) =>
-  new Intl.NumberFormat('it-IT', {
+  new Intl.NumberFormat(locale(), {
     style: 'currency',
     currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(cents / 100);
 export const dateLabel = (date: string) =>
   date
-    ? new Intl.DateTimeFormat('it-IT', {
+    ? new Intl.DateTimeFormat(locale(), {
         day: 'numeric',
         month: 'short',
         timeZone: 'UTC',
       }).format(new Date(date + 'T12:00:00Z'))
-    : 'Nessuna scadenza';
-export function parseMoney(input: string, decimal = ','): number {
+    : tr('Nessuna scadenza');
+export function parseMoney(
+  input: string,
+  decimal = decimalSeparator(),
+): number {
   const value = input.trim().replace(/[€\s\u00a0]/g, '');
   const expression =
     decimal === ','
       ? /^[+-]?(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d{1,2})?$/
       : /^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/;
   if (!expression.test(value))
-    throw new Error('Importo non valido: usa al massimo due decimali.');
+    throw new LocalizedError(
+      msg('Importo non valido: usa al massimo due decimali.'),
+    );
   const normalized = value.replaceAll(decimal === ',' ? '.' : ',', '');
   const [whole, fraction = ''] = normalized.replace(/^[+-]/, '').split(decimal);
   const cents =
     (Number(whole) * 100 + Number(fraction.padEnd(2, '0'))) *
     (value.startsWith('-') ? -1 : 1);
   if (!Number.isSafeInteger(cents) || Math.abs(cents) > 1e12)
-    throw new Error('Importo fuori limite.');
+    throw new LocalizedError(msg('Importo fuori limite.'));
   return cents;
 }
-export const moneyInput = (cents: number) =>
-  (cents / 100).toFixed(2).replace('.', ',');
+export const moneyInput = (cents: number, language = getLanguage()) =>
+  (cents / 100).toFixed(2).replace('.', decimalSeparator(language));
 export function list<T extends Kind>(
   data: Data,
   kind: T,
@@ -202,14 +219,20 @@ export function emptyData(): Data {
       timezone: 'Europe/Rome',
     },
   };
+  return { schemaVersion: 1, entities };
+}
+// Only new workspaces and explicit resets create localised categories.
+// Sync uses emptyData(), which is identical in every language.
+export function createInitialData(language: Language = getLanguage()): Data {
+  const { entities } = emptyData();
   [
-    'Stipendio e compensi',
-    'Casa e utenze',
-    'Alimentari',
-    'Software e servizi',
-    'Trasporti',
-    'Tempo libero',
-    'Altro',
+    translate(language, 'Stipendio e compensi'),
+    translate(language, 'Casa e utenze'),
+    translate(language, 'Alimentari'),
+    translate(language, 'Software e servizi'),
+    translate(language, 'Trasporti'),
+    translate(language, 'Tempo libero'),
+    translate(language, 'Altro'),
   ].forEach((name, i) => {
     const id = `category-${i}`;
     entities[id] = {
@@ -354,7 +377,7 @@ export function forecastSeries(
       .reduce((n, o) => n + o.amountCents, 0);
     balance += income - expense;
     return {
-      label: new Intl.DateTimeFormat('it-IT', {
+      label: new Intl.DateTimeFormat(locale(), {
         month: 'short',
         year: '2-digit',
         timeZone: 'UTC',
@@ -467,7 +490,7 @@ export function resolveMerge(
   const result = structuredClone(data);
   for (const c of conflicts) {
     if (!choices[c.id])
-      throw new Error('Scegli una versione per ogni conflitto.');
+      throw new LocalizedError(msg('Scegli una versione per ogni conflitto.'));
     const choice = c[choices[c.id]];
     if (choice) result.entities[c.id] = choice;
     else
@@ -479,11 +502,20 @@ export function resolveMerge(
   }
   return validateData(result);
 }
+export function parseDataJSON(text: string): Data {
+  let input: unknown;
+  try {
+    input = JSON.parse(text);
+  } catch {
+    throw new LocalizedError(msg('File JSON non valido.'));
+  }
+  return validateData(input);
+}
 export function validateData(input: unknown): Data {
-  const bad = (message: string): never => {
-    throw new Error(`Dati non validi: ${message}`);
+  const bad = (message: Message): never => {
+    throw new LocalizedError(msg('Dati non validi: {message}', { message }));
   };
-  if (!input || typeof input !== 'object') return bad('file JSON atteso.');
+  if (!input || typeof input !== 'object') return bad(msg('file JSON atteso.'));
   const data = input as Data;
   if (
     data.schemaVersion !== 1 ||
@@ -491,11 +523,11 @@ export function validateData(input: unknown): Data {
     typeof data.entities !== 'object' ||
     Array.isArray(data.entities)
   )
-    return bad('versione o struttura non supportata.');
+    return bad(msg('versione o struttura non supportata.'));
   const entries = Object.entries(data.entities);
-  if (entries.length > 100000) return bad('troppi elementi.');
+  if (entries.length > 100000) return bad(msg('troppi elementi.'));
   if (Object.keys(data).some((k) => !['schemaVersion', 'entities'].includes(k)))
-    return bad('proprietà del file non riconosciuta.');
+    return bad(msg('proprietà del file non riconosciuta.'));
   const string = (v: unknown) => typeof v === 'string' && v.length <= 100000;
   const amount = (v: unknown) =>
     Number.isSafeInteger(v) && Math.abs(v as number) <= 1e12;
@@ -573,7 +605,7 @@ export function validateData(input: unknown): Data {
       (e.deletedAt !== undefined &&
         (!string(e.deletedAt) || isNaN(Date.parse(e.deletedAt))))
     )
-      return bad('identificatore o metadati.');
+      return bad(msg('identificatore o metadati.'));
     if (
       !Object.hasOwn(allowed, e.type) ||
       Object.keys(e).some(
@@ -587,14 +619,14 @@ export function validateData(input: unknown): Data {
           ].includes(k),
       )
     )
-      return bad('proprietà di un elemento non riconosciuta.');
+      return bad(msg('proprietà di un elemento non riconosciuta.'));
     if (
       ['account', 'project', 'task', 'transaction', 'forecast'].includes(
         e.type,
       ) &&
       !one((e as Account).scope, ['personale', 'lavoro'])
     )
-      return bad('ambito.');
+      return bad(msg('ambito.'));
     switch (e.type) {
       case 'settings':
         if (
@@ -604,7 +636,7 @@ export function validateData(input: unknown): Data {
           e.currency !== 'EUR' ||
           e.timezone !== 'Europe/Rome'
         )
-          return bad('impostazioni.');
+          return bad(msg('impostazioni.'));
         break;
       case 'account':
         if (
@@ -613,7 +645,7 @@ export function validateData(input: unknown): Data {
           !amount(e.openingCents) ||
           !date(e.openingDate)
         )
-          return bad('conto.');
+          return bad(msg('conto.'));
         break;
       case 'category':
         if (
@@ -621,7 +653,7 @@ export function validateData(input: unknown): Data {
           !e.name.trim() ||
           !/^#[0-9a-f]{6}$/i.test(e.color)
         )
-          return bad('categoria.');
+          return bad(msg('categoria.'));
         break;
       case 'project':
         if (
@@ -641,7 +673,7 @@ export function validateData(input: unknown): Data {
           !amount(e.targetCents) ||
           e.targetCents < 0
         )
-          return bad('progetto.');
+          return bad(msg('progetto.'));
         break;
       case 'task':
         if (
@@ -663,7 +695,7 @@ export function validateData(input: unknown): Data {
               typeof s.done === 'boolean',
           )
         )
-          return bad('attività.');
+          return bad(msg('attività.'));
         break;
       case 'transaction':
       case 'forecast': {
@@ -677,22 +709,26 @@ export function validateData(input: unknown): Data {
           !reference(e.categoryId, 'category') ||
           !reference(e.projectId, 'project')
         )
-          return bad('movimento.');
+          return bad(msg('movimento.'));
         const a = data.entities[e.accountId] as Account;
         if (!e.deletedAt && a.deletedAt)
           return bad(
-            'un movimento attivo fa riferimento a un conto eliminato. Risolvi il conflitto conservando il conto.',
+            msg(
+              'un movimento attivo fa riferimento a un conto eliminato. Risolvi il conflitto conservando il conto.',
+            ),
           );
         if (!e.deletedAt && (e.date < a.openingDate || e.scope !== a.scope))
           return bad(
-            'data precedente al saldo iniziale o ambito diverso dal conto.',
+            msg(
+              'data precedente al saldo iniziale o ambito diverso dal conto.',
+            ),
           );
         if (
           !e.deletedAt &&
           e.projectId &&
           (data.entities[e.projectId] as Project).scope !== e.scope
         )
-          return bad('ambito del progetto diverso dal movimento.');
+          return bad(msg('ambito del progetto diverso dal movimento.'));
         if (e.type === 'transaction') {
           if (
             !fields(e, ['forecastKey', 'toAccountId', 'notes']) ||
@@ -710,7 +746,9 @@ export function validateData(input: unknown): Data {
                 (!e.deletedAt && data.entities[e.toAccountId].deletedAt)))
           )
             return bad(
-              'trasferimento o movimento (i movimenti futuri vanno nelle previsioni).',
+              msg(
+                'trasferimento o movimento (i movimenti futuri vanno nelle previsioni).',
+              ),
             );
         } else if (
           !one(e.direction, ['income', 'expense']) ||
@@ -718,7 +756,7 @@ export function validateData(input: unknown): Data {
           !date(e.endDate, true) ||
           (e.endDate && e.endDate < e.date)
         )
-          return bad('ricorrenza.');
+          return bad(msg('ricorrenza.'));
         break;
       }
       case 'scenario':
@@ -745,19 +783,19 @@ export function validateData(input: unknown): Data {
               (a.excluded === undefined || typeof a.excluded === 'boolean'),
           )
         )
-          return bad('scenario.');
+          return bad(msg('scenario.'));
         break;
       default:
-        return bad('tipo di elemento sconosciuto.');
+        return bad(msg('tipo di elemento sconosciuto.'));
     }
   }
   if (data.entities.settings?.type !== 'settings')
-    return bad('impostazioni mancanti.');
+    return bad(msg('impostazioni mancanti.'));
   const keys = list(data, 'transaction')
     .map((t) => t.forecastKey)
     .filter(Boolean);
   if (keys.length !== new Set(keys).size)
-    return bad('previsione registrata più di una volta.');
+    return bad(msg('previsione registrata più di una volta.'));
   for (const t of list(data, 'transaction'))
     if (
       t.forecastKey &&
@@ -769,7 +807,7 @@ export function validateData(input: unknown): Data {
           false,
         ))
     )
-      return bad('riferimento alla previsione.');
+      return bad(msg('riferimento alla previsione.'));
   let integerBudget = 0;
   for (const e of Object.values(data.entities)) {
     if (e.deletedAt) continue;
@@ -782,13 +820,15 @@ export function validateData(input: unknown): Data {
         integerBudget += adjustment.amountCents ?? 0;
     if (!Number.isSafeInteger(integerBudget))
       return bad(
-        'la somma degli importi supera il limite di precisione in centesimi.',
+        msg(
+          'la somma degli importi supera il limite di precisione in centesimi.',
+        ),
       );
   }
   return structuredClone(data);
 }
-export function demoData(): Data {
-  const data = emptyData(),
+export function demoData(language: Language = getLanguage()): Data {
+  const data = createInitialData(language),
     now = today(),
     month = now.slice(0, 7) + '-01';
   const add = (e: Omit<Entity, 'updatedAt'>) => {
@@ -801,7 +841,7 @@ export function demoData(): Data {
   add({
     id: 'demo-main',
     type: 'account',
-    name: 'Conto principale',
+    name: translate(language, 'Conto principale'),
     openingCents: 780000,
     openingDate: shiftMonth(month, -5),
     scope: 'lavoro',
@@ -809,7 +849,7 @@ export function demoData(): Data {
   add({
     id: 'demo-personal',
     type: 'account',
-    name: 'Conto personale',
+    name: translate(language, 'Conto personale'),
     openingCents: 320000,
     openingDate: shiftMonth(month, -5),
     scope: 'personale',
@@ -818,21 +858,21 @@ export function demoData(): Data {
     [
       'demo-p1',
       'Studio Forma',
-      'Un nuovo sito per uno studio di architettura.',
+      translate(language, 'Un nuovo sito per uno studio di architettura.'),
       650000,
       colors[0],
     ],
     [
       'demo-p2',
-      'Il mio prodotto digitale',
-      'Dall’idea al primo lancio: un passo alla volta.',
+      translate(language, 'Il mio prodotto digitale'),
+      translate(language, 'Dall’idea al primo lancio: un passo alla volta.'),
       300000,
       colors[2],
     ],
     [
       'demo-p3',
-      'Consulenza Acme',
-      'Strategia e direzione per il prossimo trimestre.',
+      translate(language, 'Consulenza Acme'),
+      translate(language, 'Strategia e direzione per il prossimo trimestre.'),
       480000,
       colors[1],
     ],
@@ -857,17 +897,31 @@ export function demoData(): Data {
     for (const [j, name, amount, direction, category, account] of [
       [
         0,
-        'Consulenza mensile',
+        translate(language, 'Consulenza mensile'),
         270000 + (m + 5) * 13000,
         'income',
         'category-0',
         'demo-main',
       ],
-      [1, 'Casa e utenze', 76000, 'expense', 'category-1', 'demo-personal'],
-      [2, 'Software e strumenti', 14900, 'expense', 'category-3', 'demo-main'],
+      [
+        1,
+        translate(language, 'Casa e utenze'),
+        76000,
+        'expense',
+        'category-1',
+        'demo-personal',
+      ],
+      [
+        2,
+        translate(language, 'Software e strumenti'),
+        14900,
+        'expense',
+        'category-3',
+        'demo-main',
+      ],
       [
         3,
-        'Spesa e quotidianità',
+        translate(language, 'Spesa e quotidianità'),
         32600 + (m + 5) * 950,
         'expense',
         'category-2',
@@ -892,12 +946,12 @@ export function demoData(): Data {
       } as Transaction);
   }
   [
-    'Inviare la proposta definitiva',
-    'Rivedere il prototipo',
-    'Preparare il piano di lancio',
-    'Organizzare le spese del mese',
-    'Condividere la prima bozza',
-    'Definire gli obiettivi',
+    translate(language, 'Inviare la proposta definitiva'),
+    translate(language, 'Rivedere il prototipo'),
+    translate(language, 'Preparare il piano di lancio'),
+    translate(language, 'Organizzare le spese del mese'),
+    translate(language, 'Condividere la prima bozza'),
+    translate(language, 'Definire gli obiettivi'),
   ].forEach((name, i) =>
     add({
       id: `demo-task${i}`,
@@ -912,8 +966,16 @@ export function demoData(): Data {
       subtasks:
         i === 2
           ? [
-              { id: 'sub1', name: 'Scrivere il messaggio', done: true },
-              { id: 'sub2', name: 'Scegliere i canali', done: false },
+              {
+                id: 'sub1',
+                name: translate(language, 'Scrivere il messaggio'),
+                done: true,
+              },
+              {
+                id: 'sub2',
+                name: translate(language, 'Scegliere i canali'),
+                done: false,
+              },
             ]
           : [],
     } as Task),
@@ -921,7 +983,7 @@ export function demoData(): Data {
   for (const [id, name, direction, amountCents, categoryId, accountId] of [
     [
       'demo-f1',
-      'Compenso consulenza',
+      translate(language, 'Compenso consulenza'),
       'income',
       335000,
       'category-0',
@@ -929,7 +991,7 @@ export function demoData(): Data {
     ],
     [
       'demo-f2',
-      'Casa e utenze',
+      translate(language, 'Casa e utenze'),
       'expense',
       76000,
       'category-1',
@@ -937,7 +999,7 @@ export function demoData(): Data {
     ],
     [
       'demo-f3',
-      'Abbonamenti e software',
+      translate(language, 'Abbonamenti e software'),
       'expense',
       14900,
       'category-3',

@@ -1,4 +1,5 @@
-import { emptyData, validateData, type Data } from './domain';
+import { msg, LocalizedError } from './i18n';
+import { createInitialData, validateData, type Data } from './domain';
 export interface StoredState {
   data: Data;
   revision: number;
@@ -15,12 +16,16 @@ export function db() {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () =>
       reject(
-        new Error(
-          'Impossibile aprire l’archivio locale. Controlla i permessi del browser.',
+        new LocalizedError(
+          msg(
+            'Impossibile aprire l’archivio locale. Controlla i permessi del browser.',
+          ),
         ),
       );
     request.onblocked = () =>
-      reject(new Error('Chiudi le altre schede di Punto e riprova.'));
+      reject(
+        new LocalizedError(msg('Chiudi le altre schede di Punto e riprova.')),
+      );
   }));
 }
 export async function getValue<T>(key: string): Promise<T | undefined> {
@@ -57,15 +62,17 @@ export async function mutateData(
     req.onsuccess = () => {
       try {
         const current: StoredState = req.result ?? {
-          data: emptyData(),
+          data: createInitialData(),
           revision: 0,
         };
         if (
           expectedRevision !== undefined &&
           current.revision !== expectedRevision
         )
-          throw new Error(
-            'I dati sono cambiati in un’altra scheda. Ripeti l’operazione.',
+          throw new LocalizedError(
+            msg(
+              'I dati sono cambiati in un’altra scheda. Ripeti l’operazione.',
+            ),
           );
         result = {
           data: validateData(mutate(structuredClone(current.data))),
@@ -96,7 +103,9 @@ export async function mutateData(
     };
     tx.onerror = tx.onabort = () =>
       reject(
-        error ?? tx.error ?? new Error('Salvataggio locale non riuscito.'),
+        error ??
+          tx.error ??
+          new LocalizedError(msg('Salvataggio locale non riuscito.')),
       );
   });
 }

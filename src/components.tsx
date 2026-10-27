@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import {
   useEffect,
   useRef,
@@ -67,7 +68,7 @@ export function Dialog({
         <h2 id={titleId}>{title}</h2>
         <button
           className="icon-button"
-          aria-label="Chiudi finestra"
+          aria-label={tr('Chiudi finestra')}
           onClick={onClose}
         >
           <X size={20} />
@@ -174,11 +175,11 @@ export function TransactionTable({
       <table className="transactions">
         <thead>
           <tr>
-            <th>Movimento</th>
-            <th>Categoria</th>
-            <th>Conto</th>
-            <th>Data</th>
-            <th className="number">Importo</th>
+            <th>{tr('Movimento')}</th>
+            <th>{tr('Categoria')}</th>
+            <th>{tr('Conto')}</th>
+            <th>{tr('Data')}</th>
+            <th className="number">{tr('Importo')}</th>
           </tr>
         </thead>
         <tbody>
@@ -204,7 +205,7 @@ export function TransactionTable({
                     <span>
                       <strong>{t.name}</strong>
                       <small>
-                        {t.scope === 'lavoro' ? 'Lavoro' : 'Personale'}
+                        {t.scope === 'lavoro' ? tr('Lavoro') : tr('Personale')}
                         {t.projectId &&
                           data.entities[t.projectId] &&
                           ' · ' +
@@ -228,8 +229,8 @@ export function TransactionTable({
                     {category && 'name' in category
                       ? category.name
                       : t.direction === 'transfer'
-                        ? 'Trasferimento'
-                        : 'Senza categoria'}
+                        ? tr('Trasferimento')
+                        : tr('Senza categoria')}
                   </span>
                 </td>
                 <td className="muted">
@@ -255,8 +256,8 @@ export function TransactionTable({
       </table>
       {transactions.length === 0 && (
         <Empty
-          title="Nessun movimento"
-          description="I movimenti che registri appariranno qui."
+          title={tr('Nessun movimento')}
+          description={tr('I movimenti che registri appariranno qui.')}
         />
       )}
     </div>
@@ -271,7 +272,7 @@ export function LineChart({
   points,
   forecast = false,
   height = 230,
-  label = 'Andamento della liquidità',
+  label = tr('Andamento della liquidità'),
 }: {
   points: ChartPoint[];
   forecast?: boolean;
@@ -419,7 +420,7 @@ export function BarChart({
     <div
       className="bar-chart"
       role="img"
-      aria-label="Entrate e uscite per mese"
+      aria-label={tr('Entrate e uscite per mese')}
     >
       {points.map((p, i) => (
         <div className="bar-column" key={i}>
@@ -427,16 +428,22 @@ export function BarChart({
             <div
               className="bar income-bar"
               style={{ height: `${(p.income / max) * 100}%` }}
-              title={`Entrate: ${euro(p.income)}`}
+              title={tr('Entrate: {amount}', { amount: euro(p.income) })}
               tabIndex={0}
-              aria-label={`${p.label}, entrate ${euro(p.income)}`}
+              aria-label={tr('{month}, entrate {amount}', {
+                month: p.label,
+                amount: euro(p.income),
+              })}
             />
             <div
               className="bar expense-bar"
               style={{ height: `${(p.expense / max) * 100}%` }}
-              title={`Uscite: ${euro(p.expense)}`}
+              title={tr('Uscite: {amount}', { amount: euro(p.expense) })}
               tabIndex={0}
-              aria-label={`${p.label}, uscite ${euro(p.expense)}`}
+              aria-label={tr('{month}, uscite {amount}', {
+                month: p.label,
+                amount: euro(p.expense),
+              })}
             />
           </div>
           <span>{p.label}</span>
@@ -469,7 +476,7 @@ export function entityName(data: Data, id: string) {
 export function CategoryOptions({ data }: { data: Data }) {
   return (
     <>
-      <option value="">Senza categoria</option>
+      <option value="">{tr('Senza categoria')}</option>
       {list(data, 'category').map((c) => (
         <option key={c.id} value={c.id}>
           {c.name}

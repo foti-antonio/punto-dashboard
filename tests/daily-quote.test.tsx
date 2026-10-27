@@ -19,7 +19,7 @@ afterEach(() => {
 function expectToday() {
   const quote = getDailyQuote();
   const figure = screen.getByRole('figure', {
-    name: 'Citazione stoica del giorno',
+    name: 'Daily Stoic quote',
   });
   expect(within(figure).getByText(`«${quote.text}»`)).toBeTruthy();
   expect(within(figure).getByText(quote.author).title).toBe(quote.reference);

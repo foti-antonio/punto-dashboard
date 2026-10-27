@@ -1,9 +1,11 @@
+import { getLanguage, type Language } from './i18n';
 import { today } from './domain';
 
 export interface StoicQuote {
   readonly id: string;
   readonly text: string;
-  readonly author: 'Marco Aurelio' | 'Seneca' | 'Epitteto';
+  readonly author:
+    'Marco Aurelio' | 'Seneca' | 'Epitteto' | 'Marcus Aurelius' | 'Epictetus';
   readonly reference: string;
   readonly source: string;
 }
@@ -15,7 +17,7 @@ const handbook = 'https://el.wikisource.org/wiki/Εγχειρίδιον';
 
 // Traduzioni proprie di brevi passi originali, non aforismi di attribuzione incerta.
 // Riferimenti e criteri editoriali: docs/stoic-quotes.md.
-export const STOIC_QUOTES: readonly StoicQuote[] = [
+export const STOIC_QUOTES = [
   {
     id: 'ma-4-3',
     text: 'In nessun luogo trovi un rifugio più quieto che nella tua anima.',
@@ -226,7 +228,69 @@ export const STOIC_QUOTES: readonly StoicQuote[] = [
     reference: 'Manuale, 46, 1',
     source: handbook + '#μστʹ',
   },
-];
+] as const satisfies readonly StoicQuote[];
+
+type QuoteId = (typeof STOIC_QUOTES)[number]['id'];
+const englishTexts = {
+  'ma-4-3': 'Nowhere can you find a quieter refuge than in your own soul.',
+  'ma-4-17': 'While you live, while you can, become good.',
+  'ma-4-23':
+    'Whatever is in harmony with you, O universe, is in harmony with me.',
+  'ma-5-16': 'The soul takes on the colour of the thoughts you cultivate.',
+  'ma-6-6': 'The best defence is not to become like the person who wrongs you.',
+  'ma-6-54': 'What does not benefit the swarm does not benefit the bee.',
+  'ma-7-59': 'Dig within yourself: within is the source of goodness.',
+  'ma-8-36':
+    'It is neither the future nor the past that weighs on you, but always the present.',
+  'ma-9-5':
+    'Often, the person who does nothing also acts unjustly, not only the one who acts.',
+  'ma-12-17':
+    'If it is not right, do not do it; if it is not true, do not say it.',
+  'se-1-1': 'Take possession of yourself again: gather and guard your time.',
+  'se-1-3': 'While we put things off, life slips away.',
+  'se-2-6':
+    'The poor person is not the one who has little, but the one who wants more.',
+  'se-3-2': 'Consider everything with a friend, but first consider the friend.',
+  'se-6-5':
+    'The road through rules is long; the road through examples is short and effective.',
+  'se-7-8': 'Spend time with those who will make you better.',
+  'se-13-4': 'We suffer more often from what we imagine than from reality.',
+  'se-16-3': 'Philosophy forms and shapes the soul.',
+  'se-20-2': 'Philosophy teaches us to act, not to talk.',
+  'se-23-8': 'We must decide what we want and persevere.',
+  'ep-1-1': 'Some things depend on us; others do not.',
+  'ep-4':
+    'Before you undertake an action, remind yourself what kind of action it is.',
+  'ep-5':
+    'People are disturbed not by things, but by their judgements about things.',
+  'ep-6': 'Do not boast of a virtue that belongs to someone else.',
+  'ep-8':
+    'Do not ask for events to happen as you wish; wish for them as they happen.',
+  'ep-10': 'With every event, look within yourself for the ability to face it.',
+  'ep-12-2': 'Begin, then, with small things.',
+  'ep-20':
+    'If you allow yourself time and a pause, you will find it easier to master yourself.',
+  'ep-33-2':
+    'Be silent for the most part, or say what is necessary in few words.',
+  'ep-46-1': 'Do not talk much about principles: put them into practice.',
+} satisfies Record<QuoteId, string>;
+const englishAuthors = {
+  'Marco Aurelio': 'Marcus Aurelius',
+  Seneca: 'Seneca',
+  Epitteto: 'Epictetus',
+} as const;
+export const QUOTES_BY_LANGUAGE: Record<Language, readonly StoicQuote[]> = {
+  it: STOIC_QUOTES,
+  en: STOIC_QUOTES.map((quote) => ({
+    ...quote,
+    text: englishTexts[quote.id],
+    author: englishAuthors[quote.author],
+    reference: quote.reference
+      .replace('Pensieri', 'Meditations')
+      .replace('Lettere a Lucilio', 'Letters to Lucilius')
+      .replace('Manuale', 'Handbook'),
+  })),
+};
 
 function shuffledQuotes(cycle: number) {
   const quotes = [...STOIC_QUOTES];
@@ -246,7 +310,10 @@ function shuffledQuotes(cycle: number) {
 }
 
 /** La data è un giorno di calendario ISO, nel fuso Europe/Rome per default. */
-export function getDailyQuote(date = today()): StoicQuote {
+export function getDailyQuote(
+  date = today(),
+  language: Language = getLanguage(),
+): StoicQuote {
   // UTC serve solo a numerare i giorni civili: nessun intervallo locale di 24 ore,
   // che salterebbe o ripeterebbe giorni durante il cambio dell’ora.
   const day = Math.floor(Date.parse(date + 'T00:00:00Z') / 86_400_000);
@@ -258,5 +325,8 @@ export function getDailyQuote(date = today()): StoicQuote {
   if (quotes[0].id === shuffledQuotes(cycle - 1)[count - 1].id) {
     [quotes[0], quotes[1]] = [quotes[1], quotes[0]];
   }
-  return quotes[day - cycle * count];
+  const selected = quotes[day - cycle * count];
+  return QUOTES_BY_LANGUAGE[language].find(
+    (quote) => quote.id === selected.id,
+  )!;
 }

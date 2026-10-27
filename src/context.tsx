@@ -1,3 +1,4 @@
+import { type Message } from './i18n';
 import { createContext, useContext } from 'react';
 import { type Data, type Entity } from './domain';
 export interface AppContext {
@@ -9,7 +10,7 @@ export interface AppContext {
   ) => Promise<void>;
   save: (entity: Entity) => Promise<void>;
   remove: (id: string, expectedUpdatedAt?: string) => Promise<void>;
-  toast: (message: string) => void;
+  toast: (message: Message) => void;
 }
 export const Context = createContext<AppContext | null>(null);
 export const useApp = () => useContext(Context)!;

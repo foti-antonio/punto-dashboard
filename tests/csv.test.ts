@@ -1,3 +1,4 @@
+import { messageText } from '../src/i18n';
 import { describe, it, expect } from 'vitest';
 import { parseCSV, previewCSV, csvDate, type CSVMapping } from '../src/csv';
 import { fixture, transaction } from './fixtures';
@@ -43,7 +44,7 @@ describe('importazione CSV', () => {
     expect(result[0].duplicate).toBe(true);
     expect(result[1].transaction?.amountCents).toBe(123456);
     expect(result[1].transaction?.direction).toBe('expense');
-    expect(result[2].error).toContain('Data');
+    expect(messageText(result[2].error!)).toContain('date');
     expect(result[3].duplicate).toBe(true);
     expect(JSON.stringify(data)).toBe(before);
   });

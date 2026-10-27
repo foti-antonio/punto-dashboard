@@ -1,3 +1,16 @@
+import {
+  msg,
+  LocalizedError,
+  toMessage,
+  messageText,
+  type Message,
+  tr,
+  locale,
+  numberLabel,
+  useLanguage,
+  setLanguage,
+  type Language,
+} from './i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   GitBranch,
@@ -22,12 +35,13 @@ import {
 import { useApp } from './context';
 import { Dialog, Field, SectionHeading } from './components';
 import {
-  emptyData,
+  createInitialData,
   demoData,
   equal,
   list,
   stamp,
   validateData,
+  parseDataJSON,
   type Data,
   type Settings,
 } from './domain';
@@ -46,7 +60,7 @@ import {
 import { type FormSpec } from './forms';
 import { setThemePreference, useTheme } from './theme';
 export interface SyncIndicator {
-  label: string;
+  label: Message;
   status: 'local' | 'dirty' | 'syncing' | 'synced' | 'error' | 'locked';
 }
 export function SettingsPage({
@@ -60,13 +74,14 @@ export function SettingsPage({
 }) {
   const { data, revision, save, update, toast } = useApp();
   const theme = useTheme();
+  const languageState = useLanguage();
   const [vault, setVault] = useState<Vault | null>(null),
     [loaded, setLoaded] = useState(false),
     [token, setToken] = useState(''),
     [setup, setSetup] = useState(false),
     [unlocking, setUnlocking] = useState(false),
     [password, setPassword] = useState(''),
-    [error, setError] = useState(''),
+    [error, setError] = useState<Message>(''),
     [busy, setBusy] = useState(false),
     [lastSync, setLastSync] = useState(''),
     [dirty, setDirty] = useState(false);
@@ -95,7 +110,7 @@ export function SettingsPage({
           setLoaded(true);
         }
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(toMessage(e)));
     return () => {
       active = false;
     };
@@ -104,15 +119,21 @@ export function SettingsPage({
     let active = true;
     if (!loaded) return;
     if (busy) {
-      onIndicator({ label: 'Sincronizzazione in corso', status: 'syncing' });
+      onIndicator({
+        label: msg('Sincronizzazione in corso'),
+        status: 'syncing',
+      });
       return;
     }
     if (error) {
-      onIndicator({ label: 'Sincronizzazione da verificare', status: 'error' });
+      onIndicator({
+        label: msg('Sincronizzazione da verificare'),
+        status: 'error',
+      });
       return;
     }
     if (!vault) {
-      onIndicator({ label: 'Salvato sul dispositivo', status: 'local' });
+      onIndicator({ label: msg('Salvato sul dispositivo'), status: 'local' });
       return;
     }
     getBase(vault.config)
@@ -123,14 +144,14 @@ export function SettingsPage({
         setLastSync(base?.date ?? '');
         onIndicator({
           label: !token
-            ? 'GitHub da sbloccare'
+            ? msg('GitHub da sbloccare')
             : changed
-              ? 'Modifiche locali'
-              : 'Sincronizzato',
+              ? msg('Modifiche locali')
+              : msg('Sincronizzato'),
           status: !token ? 'locked' : changed ? 'dirty' : 'synced',
         });
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(toMessage(e)));
     return () => {
       active = false;
     };
@@ -152,11 +173,13 @@ export function SettingsPage({
         setDirty(result.dirty);
         toast(
           push
-            ? 'Dati salvati su GitHub.'
-            : 'Aggiornamenti recuperati. Le modifiche locali sono conservate.',
+            ? msg('Dati salvati su GitHub.')
+            : msg(
+                'Aggiornamenti recuperati. Le modifiche locali sono conservate.',
+              ),
         );
       } catch (e) {
-        setError((e as Error).message);
+        setError(toMessage(e));
       } finally {
         setBusy(false);
         running.current = false;
@@ -177,9 +200,11 @@ export function SettingsPage({
     try {
       await finishSync(conflict.plan, choices, token, conflict.push);
       setConflict(null);
-      toast('Conflitti risolti. Le versioni scelte sono state conservate.');
+      toast(
+        msg('Conflitti risolti. Le versioni scelte sono state conservate.'),
+      );
     } catch (e) {
-      setError((e as Error).message);
+      setError(toMessage(e));
     } finally {
       setBusy(false);
     }
@@ -208,10 +233,12 @@ export function SettingsPage({
       setRestore(null);
       setConfirmation(null);
       toast(
-        'Dati aggiornati. Una copia precedente è disponibile nei backup locali.',
+        msg(
+          'Dati aggiornati. Una copia precedente è disponibile nei backup locali.',
+        ),
       );
     } catch (e) {
-      setError((e as Error).message);
+      setError(toMessage(e));
     } finally {
       setBusy(false);
     }
@@ -219,11 +246,14 @@ export function SettingsPage({
   async function readRestore(file: File) {
     setError('');
     try {
-      if (file.size > 10000000) throw new Error('Il file supera 10 MB.');
-      const parsed = validateData(JSON.parse(await file.text()));
+      if (file.size > 10000000)
+        throw new LocalizedError(msg('Il file supera 10 MB.'));
+      const parsed = parseDataJSON(await file.text());
       setRestore({ data: parsed, name: file.name });
     } catch (e) {
-      setError('Ripristino non disponibile: ' + (e as Error).message);
+      setError(
+        msg('Ripristino non disponibile: {message}', { message: toMessage(e) }),
+      );
     }
   }
   async function disconnect() {
@@ -233,7 +263,7 @@ export function SettingsPage({
     await putValue('vault', null);
     setVault(null);
     setError('');
-    toast('Collegamento rimosso dal dispositivo. I dati sono conservati.');
+    toast(msg('Collegamento rimosso dal dispositivo. I dati sono conservati.'));
   }
   const settings = data.entities.settings as Settings;
   return (
@@ -241,8 +271,10 @@ export function SettingsPage({
       <div hidden={!visible} className="settings-page">
         <section className="panel settings-panel">
           <SectionHeading
-            title="Il tuo profilo"
-            description="Un piccolo dettaglio per rendere questo spazio tuo."
+            title={tr('Il tuo profilo')}
+            description={tr(
+              'Un piccolo dettaglio per rendere questo spazio tuo.',
+            )}
           />
           <form
             className="profile-form"
@@ -251,44 +283,76 @@ export function SettingsPage({
               const f = new FormData(e.currentTarget);
               try {
                 await save({ ...settings, name: String(f.get('name')).trim() });
-                toast('Profilo aggiornato.');
+                toast(msg('Profilo aggiornato.'));
               } catch (err) {
-                setError((err as Error).message);
+                setError(toMessage(err));
               }
             }}
           >
-            <Field label="Come ti chiami?">
+            <Field label={tr('Come ti chiami?')}>
               <input
                 name="name"
                 defaultValue={settings.name}
                 key={settings.name}
                 maxLength={80}
-                placeholder="Il tuo nome"
+                placeholder={tr('Il tuo nome')}
               />
             </Field>
-            <button className="button secondary">Salva profilo</button>
+            <button className="button secondary">{tr('Salva profilo')}</button>
           </form>
           <div className="settings-meta">
             <span>
-              Valuta <strong>Euro (EUR)</strong>
+              {tr('Valuta')} <strong>Euro (EUR)</strong>
             </span>
             <span>
-              Fuso orario <strong>Europe/Rome</strong>
+              {tr('Fuso orario')} <strong>Europe/Rome</strong>
             </span>
             <span>
-              Archivio <strong>Questo profilo browser</strong>
+              {tr('Archivio')} <strong>{tr('Questo profilo browser')}</strong>
             </span>
           </div>
         </section>
         <section className="panel settings-panel">
-          <SectionHeading title="Aspetto" />
+          <SectionHeading title={tr('Lingua')} />
+          <div className="language-options">
+            <Field label={tr('Lingua dell’interfaccia')}>
+              <select
+                value={languageState.language}
+                onChange={(event) =>
+                  setLanguage(event.target.value as Language)
+                }
+              >
+                <option value="en" lang="en">
+                  English
+                </option>
+                <option value="it" lang="it">
+                  Italiano
+                </option>
+              </select>
+            </Field>
+          </div>
+          <p className="form-hint">
+            {tr(
+              'La lingua viene salvata solo in questo browser, esclusa da backup e sincronizzazione.',
+            )}
+          </p>
+          {languageState.persistenceError && (
+            <p className="theme-storage-error" role="status">
+              {tr(
+                'La preferenza è applicata a questa sessione, ma non è stata memorizzata. Il salvataggio nel browser non è disponibile.',
+              )}
+            </p>
+          )}
+        </section>
+        <section className="panel settings-panel">
+          <SectionHeading title={tr('Aspetto')} />
           <fieldset className="theme-options" aria-describedby="theme-note">
-            <legend className="sr-only">Tema dell’interfaccia</legend>
+            <legend className="sr-only">{tr('Tema dell’interfaccia')}</legend>
             {(
               [
-                ['light', 'Chiaro', Sun],
-                ['dark', 'Scuro', Moon],
-                ['system', 'Sistema', Monitor],
+                ['light', tr('Chiaro'), Sun],
+                ['dark', tr('Scuro'), Moon],
+                ['system', tr('Sistema'), Monitor],
               ] as const
             ).map(([value, label, Icon]) => (
               <label className="theme-option" key={value}>
@@ -305,12 +369,13 @@ export function SettingsPage({
             ))}
           </fieldset>
           <p className="form-hint" id="theme-note">
-            La preferenza viene salvata solo in questo browser
+            {tr('La preferenza viene salvata solo in questo browser')}
           </p>
           {theme.persistenceError && (
             <p className="theme-storage-error" role="status">
-              La preferenza è applicata a questa sessione, ma non è stata
-              memorizzata. Il salvataggio nel browser non è disponibile.
+              {tr(
+                'La preferenza è applicata a questa sessione, ma non è stata memorizzata. Il salvataggio nel browser non è disponibile.',
+              )}
             </p>
           )}
         </section>
@@ -320,20 +385,25 @@ export function SettingsPage({
               <GitBranch size={24} />
             </span>
             <div>
-              <h2>Il tuo archivio, su GitHub</h2>
+              <h2>{tr('Il tuo archivio, su GitHub')}</h2>
               <p>
-                Una repository privata per portare i tuoi dati da un dispositivo
-                all’altro.
+                {tr(
+                  'Una repository privata per portare i tuoi dati da un dispositivo all’altro.',
+                )}
               </p>
             </div>
             <span className={`badge ${token ? 'green' : ''}`}>
-              {vault ? (token ? 'Sbloccato' : 'Da sbloccare') : 'Da collegare'}
+              {vault
+                ? token
+                  ? tr('Sbloccato')
+                  : tr('Da sbloccare')
+                : tr('Da collegare')}
             </span>
           </div>
           <p className="settings-explainer">
-            Il salvataggio nel browser è automatico. «Salva su GitHub» conserva
-            una copia completa nella tua repository. Dopo lo sblocco, Punto
-            cerca gli aggiornamenti e confronta le modifiche.
+            {tr(
+              'Il salvataggio nel browser è automatico. «Salva su GitHub» conserva una copia completa nella tua repository. Dopo lo sblocco, Punto cerca gli aggiornamenti e confronta le modifiche.',
+            )}
           </p>
           {vault ? (
             <>
@@ -347,7 +417,7 @@ export function SettingsPage({
                     {vault.config.branch} · {vault.config.path}
                   </small>
                 </div>
-                <span className="badge">Privata</span>
+                <span className="badge">{tr('Privata')}</span>
               </div>
               {!token ? (
                 <form
@@ -360,25 +430,25 @@ export function SettingsPage({
                       setToken(await decryptToken(vault, password));
                       setPassword('');
                     } catch (err) {
-                      setError((err as Error).message);
+                      setError(toMessage(err));
                     } finally {
                       setUnlocking(false);
                     }
                   }}
                 >
-                  <Field label="Password locale">
+                  <Field label={tr('Password locale')}>
                     <input
                       type="password"
                       value={password}
                       autoComplete="current-password"
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      placeholder="Sblocca il collegamento"
+                      placeholder={tr('Sblocca il collegamento')}
                     />
                   </Field>
                   <button className="button primary" disabled={unlocking}>
                     <LockKeyhole size={16} />
-                    {unlocking ? 'Sblocco…' : 'Sblocca GitHub'}
+                    {unlocking ? tr('Sblocco…') : tr('Sblocca GitHub')}
                   </button>
                 </form>
               ) : (
@@ -388,15 +458,21 @@ export function SettingsPage({
                     <div>
                       <strong>
                         {busy
-                          ? 'Sincronizzazione in corso…'
+                          ? tr('Sincronizzazione in corso…')
                           : dirty
-                            ? 'Ci sono modifiche locali'
-                            : 'Dati sincronizzati'}
+                            ? tr('Ci sono modifiche locali')
+                            : tr('Dati sincronizzati')}
                       </strong>
                       <small>
                         {lastSync
-                          ? `Ultimo confronto: ${new Intl.DateTimeFormat('it-IT', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Rome' }).format(new Date(lastSync))}`
-                          : 'Nessun salvataggio condiviso'}
+                          ? tr('Ultimo confronto: {date}', {
+                              date: new Intl.DateTimeFormat(locale(), {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                                timeZone: 'Europe/Rome',
+                              }).format(new Date(lastSync)),
+                            })
+                          : tr('Nessun salvataggio condiviso')}
                       </small>
                     </div>
                   </div>
@@ -407,7 +483,7 @@ export function SettingsPage({
                       disabled={busy || !!conflict}
                     >
                       <CloudUpload size={17} />
-                      {busy ? 'Sincronizzazione…' : 'Salva su GitHub'}
+                      {busy ? tr('Sincronizzazione…') : tr('Salva su GitHub')}
                     </button>
                     <button
                       className="button secondary"
@@ -415,7 +491,7 @@ export function SettingsPage({
                       disabled={busy || !!conflict}
                     >
                       <RefreshCw size={16} />
-                      Recupera aggiornamenti
+                      {tr('Recupera aggiornamenti')}
                     </button>
                     <button
                       className="text-button"
@@ -426,7 +502,7 @@ export function SettingsPage({
                       disabled={busy}
                     >
                       <LockKeyhole size={15} />
-                      Blocca
+                      {tr('Blocca')}
                     </button>
                   </div>
                 </>
@@ -437,14 +513,16 @@ export function SettingsPage({
                   disabled={busy}
                   onClick={() => setSetup(true)}
                 >
-                  Riconfigura collegamento
+                  {tr('Riconfigura collegamento')}
                 </button>
                 <button
                   className="text-button muted"
                   disabled={busy}
-                  onClick={() => disconnect().catch((e) => setError(e.message))}
+                  onClick={() =>
+                    disconnect().catch((e) => setError(toMessage(e)))
+                  }
                 >
-                  Scollega da questo dispositivo
+                  {tr('Scollega da questo dispositivo')}
                 </button>
               </div>
             </>
@@ -452,32 +530,35 @@ export function SettingsPage({
             <div className="connect-callout">
               <ShieldCheck size={29} />
               <div>
-                <strong>I tuoi dati restano tuoi.</strong>
+                <strong>{tr('I tuoi dati restano tuoi.')}</strong>
                 <p>
-                  Il token è cifrato sul dispositivo. Non viene incluso nelle
-                  esportazioni o nei salvataggi GitHub.
+                  {tr(
+                    'Il token è cifrato sul dispositivo. Non viene incluso nelle esportazioni o nei salvataggi GitHub.',
+                  )}
                 </p>
               </div>
               <button className="button primary" onClick={() => setSetup(true)}>
                 <Link2 size={16} />
-                Collega GitHub
+                {tr('Collega GitHub')}
               </button>
             </div>
           )}
           <div className="privacy-note">
             <HardDrive size={16} />
             <span>
-              La password sblocca solo GitHub. I dati locali rimangono
-              accessibili in questo profilo browser. Cancella i dati del sito
-              solo dopo averli esportati o salvati su GitHub.
+              {tr(
+                'La password sblocca solo GitHub. I dati locali rimangono accessibili in questo profilo browser. Cancella i dati del sito solo dopo averli esportati o salvati su GitHub.',
+              )}
             </span>
           </div>
         </section>
         <section className="panel settings-panel">
           <SectionHeading
-            title="Categorie"
-            description="Un ordine che segue il tuo modo di vivere e lavorare."
-            action="Aggiungi categoria"
+            title={tr('Categorie')}
+            description={tr(
+              'Un ordine che segue il tuo modo di vivere e lavorare.',
+            )}
+            action={tr('Aggiungi categoria')}
             onAction={() => onForm({ kind: 'category' })}
           />
           <div className="category-chips">
@@ -495,19 +576,25 @@ export function SettingsPage({
         </section>
         <section className="panel settings-panel">
           <SectionHeading
-            title="Porta i tuoi dati con te"
-            description="Esporta una copia completa o ripristina un salvataggio precedente."
+            title={tr('Porta i tuoi dati con te')}
+            description={tr(
+              'Esporta una copia completa o ripristina un salvataggio precedente.',
+            )}
           />
           <div className="backup-actions">
             <button className="backup-card" onClick={() => downloadJSON(data)}>
               <Download size={23} />
-              <strong>Esporta in JSON</strong>
-              <span>Tutti i dati e le impostazioni, senza credenziali.</span>
+              <strong>{tr('Esporta in JSON')}</strong>
+              <span>
+                {tr('Tutti i dati e le impostazioni, senza credenziali.')}
+              </span>
             </button>
             <label className="backup-card">
               <Upload size={23} />
-              <strong>Ripristina un JSON</strong>
-              <span>Controlla l’anteprima prima di sostituire i dati.</span>
+              <strong>{tr('Ripristina un JSON')}</strong>
+              <span>
+                {tr('Controlla l’anteprima prima di sostituire i dati.')}
+              </span>
               <input
                 type="file"
                 accept=".json,application/json"
@@ -520,52 +607,63 @@ export function SettingsPage({
           </div>
           {backups.length > 0 && (
             <div className="local-backups">
-              <h3>Copie di sicurezza locali</h3>
-              <p>Le ultime cinque copie create prima di sostituire i dati.</p>
+              <h3>{tr('Copie di sicurezza locali')}</h3>
+              <p>
+                {tr(
+                  'Le ultime cinque copie create prima di sostituire i dati.',
+                )}
+              </p>
               {backups.map((b, i) => (
                 <div key={b.date}>
                   <span>
-                    {new Intl.DateTimeFormat('it-IT', {
+                    {new Intl.DateTimeFormat(locale(), {
                       dateStyle: 'medium',
                       timeStyle: 'short',
+                      timeZone: 'Europe/Rome',
                     }).format(new Date(b.date))}
                   </span>
                   <button
                     className="text-button"
                     onClick={() => downloadJSON(b.data, `-backup-${i + 1}`)}
                   >
-                    Esporta
+                    {tr('Esporta')}
                   </button>
                   <button
                     className="text-button"
                     onClick={() =>
                       setRestore({
                         data: validateData(b.data),
-                        name: 'Backup locale',
+                        name: tr('Backup locale'),
                       })
                     }
                   >
-                    Ripristina
+                    {tr('Ripristina')}
                   </button>
                 </div>
               ))}
             </div>
           )}
           <p className="form-hint">
-            Per una versione precedente su GitHub, apri la cronologia del file
-            nella repository, scarica il JSON di quel salvataggio e ripristinalo
-            qui.
+            {tr(
+              'Per una versione precedente su GitHub, apri la cronologia del file nella repository, scarica il JSON di quel salvataggio e ripristinalo qui.',
+            )}
           </p>
         </section>
         <section className="panel settings-panel">
           <SectionHeading
-            title="Esplora o riparti"
-            description="Prima di sostituire i dati verrà creata una copia di sicurezza locale."
+            title={tr('Esplora o riparti')}
+            description={tr(
+              'Prima di sostituire i dati verrà creata una copia di sicurezza locale.',
+            )}
           />
           <div className="data-actions">
             <div>
-              <h3>Esplora con dati dimostrativi</h3>
-              <p>Progetti, attività e finanze di esempio per scoprire Punto.</p>
+              <h3>{tr('Esplora con dati dimostrativi')}</h3>
+              <p>
+                {tr(
+                  'Progetti, attività e finanze di esempio per scoprire Punto.',
+                )}
+              </p>
             </div>
             <button
               className="button secondary"
@@ -573,14 +671,16 @@ export function SettingsPage({
               onClick={() => setConfirmation('demo')}
             >
               <Play size={15} />
-              Carica demo
+              {tr('Carica demo')}
             </button>
           </div>
           <div className="data-actions">
             <div>
-              <h3>Riparti da uno spazio vuoto</h3>
+              <h3>{tr('Riparti da uno spazio vuoto')}</h3>
               <p>
-                Conserva le categorie iniziali e aggiungi i tuoi dati reali.
+                {tr(
+                  'Conserva le categorie iniziali e aggiungi i tuoi dati reali.',
+                )}
               </p>
             </div>
             <button
@@ -589,7 +689,7 @@ export function SettingsPage({
               onClick={() => setConfirmation('clear')}
             >
               <Trash2 size={15} />
-              Svuota i dati
+              {tr('Svuota i dati')}
             </button>
           </div>
         </section>
@@ -597,11 +697,11 @@ export function SettingsPage({
           <div className="notice error-notice" role="alert">
             <AlertCircle size={19} />
             <div>
-              <strong>Operazione non completata</strong>
-              <p>{error}</p>
+              <strong>{tr('Operazione non completata')}</strong>
+              <p>{messageText(error)}</p>
             </div>
             <button className="text-button" onClick={() => setError('')}>
-              Chiudi
+              {tr('Chiudi')}
             </button>
           </div>
         )}
@@ -622,18 +722,21 @@ export function SettingsPage({
       )}
       {conflict && (
         <Dialog
-          title="Scegli le versioni da conservare"
+          title={tr('Scegli le versioni da conservare')}
           onClose={() => {
             setConflict(null);
             setError(
-              'Sincronizzazione annullata: nessuna versione è stata sovrascritta.',
+              msg(
+                'Sincronizzazione annullata: nessuna versione è stata sovrascritta.',
+              ),
             );
           }}
           wide
         >
           <p className="muted">
-            Questi elementi sono stati modificati su entrambi i dispositivi. Le
-            modifiche agli altri elementi vengono unite automaticamente.
+            {tr(
+              'Questi elementi sono stati modificati su entrambi i dispositivi. Le modifiche agli altri elementi vengono unite automaticamente.',
+            )}
           </p>
           <div className="conflicts">
             {conflict.plan.conflicts.map((c) => (
@@ -660,14 +763,14 @@ export function SettingsPage({
                           }
                         />
                         {side === 'local'
-                          ? 'Su questo dispositivo'
-                          : 'Su GitHub'}
-                        {c[side]?.deletedAt && ' · Eliminato'}
+                          ? tr('Su questo dispositivo')
+                          : tr('Su GitHub')}
+                        {c[side]?.deletedAt && tr(' · Eliminato')}
                       </span>
                       <pre>
                         {c[side]
                           ? JSON.stringify(c[side], null, 2)
-                          : 'Elemento assente'}
+                          : tr('Elemento assente')}
                       </pre>
                     </label>
                   ))}
@@ -677,7 +780,7 @@ export function SettingsPage({
           </div>
           {error && (
             <p className="inline-error" role="alert">
-              {error}
+              {messageText(error)}
             </p>
           )}
           <div className="dialog-actions">
@@ -686,7 +789,7 @@ export function SettingsPage({
               disabled={busy}
               onClick={() => setConflict(null)}
             >
-              Annulla
+              {tr('Annulla')}
             </button>
             <button
               className="button primary"
@@ -696,17 +799,19 @@ export function SettingsPage({
               }
               onClick={resolveConflicts}
             >
-              {busy ? 'Salvataggio…' : 'Conferma le versioni scelte'}
+              {busy ? tr('Salvataggio…') : tr('Conferma le versioni scelte')}
             </button>
           </div>
         </Dialog>
       )}
       {restore && (
         <Dialog
-          title="Anteprima del ripristino"
+          title={tr('Anteprima del ripristino')}
           onClose={() => setRestore(null)}
         >
-          <p className="muted">File: {restore.name}</p>
+          <p className="muted">
+            {tr('File:')} {restore.name}
+          </p>
           <div className="restore-summary">
             {(
               [
@@ -719,16 +824,16 @@ export function SettingsPage({
               ] as const
             ).map((kind, i) => (
               <div key={kind}>
-                <strong>{list(restore.data, kind).length}</strong>
+                <strong>{numberLabel(list(restore.data, kind).length)}</strong>
                 <span>
                   {
                     [
-                      'Conti',
-                      'Progetti',
-                      'Attività',
-                      'Movimenti',
-                      'Previsioni',
-                      'Scenari',
+                      tr('Conti'),
+                      tr('Progetti'),
+                      tr('Attività'),
+                      tr('Movimenti'),
+                      tr('Previsioni'),
+                      tr('Scenari'),
                     ][i]
                   }
                 </span>
@@ -736,13 +841,13 @@ export function SettingsPage({
             ))}
           </div>
           <div className="notice amber">
-            Questo file sostituirà i dati attuali. Prima verrà conservata una
-            copia di sicurezza locale. Il collegamento GitHub rimane sul
-            dispositivo.
+            {tr(
+              'Questo file sostituirà i dati attuali. Prima verrà conservata una copia di sicurezza locale. Il collegamento GitHub rimane sul dispositivo.',
+            )}
           </div>
           {error && (
             <p className="inline-error" role="alert">
-              {error}
+              {messageText(error)}
             </p>
           )}
           <div className="dialog-actions">
@@ -751,14 +856,14 @@ export function SettingsPage({
               onClick={() => setRestore(null)}
               disabled={busy}
             >
-              Annulla
+              {tr('Annulla')}
             </button>
             <button
               className="button primary"
               disabled={busy}
               onClick={() => replaceData(restore.data)}
             >
-              {busy ? 'Ripristino…' : 'Crea backup e ripristina'}
+              {busy ? tr('Ripristino…') : tr('Crea backup e ripristina')}
             </button>
           </div>
         </Dialog>
@@ -767,22 +872,24 @@ export function SettingsPage({
         <Dialog
           title={
             confirmation === 'demo'
-              ? 'Esplora Punto con la demo'
-              : 'Riparti da uno spazio vuoto'
+              ? tr('Esplora Punto con la demo')
+              : tr('Riparti da uno spazio vuoto')
           }
           onClose={() => setConfirmation(null)}
         >
           <p>
-            Questa operazione sostituisce tutti i dati attivi sul dispositivo.
-            Prima creerò una copia di sicurezza, recuperabile da questa pagina.
+            {tr(
+              'Questa operazione sostituisce tutti i dati attivi sul dispositivo. Prima creerò una copia di sicurezza, recuperabile da questa pagina.',
+            )}
           </p>
           <p className="form-hint">
-            Le modifiche raggiungono GitHub solo quando scegli «Salva su
-            GitHub».
+            {tr(
+              'Le modifiche raggiungono GitHub solo quando scegli «Salva su GitHub».',
+            )}
           </p>
           {error && (
             <p className="inline-error" role="alert">
-              {error}
+              {messageText(error)}
             </p>
           )}
           <div className="dialog-actions">
@@ -791,20 +898,22 @@ export function SettingsPage({
               onClick={() => setConfirmation(null)}
               disabled={busy}
             >
-              Annulla
+              {tr('Annulla')}
             </button>
             <button
               className="button primary"
               disabled={busy}
               onClick={() =>
-                replaceData(confirmation === 'demo' ? demoData() : emptyData())
+                replaceData(
+                  confirmation === 'demo' ? demoData() : createInitialData(),
+                )
               }
             >
               {busy
-                ? 'Salvataggio…'
+                ? tr('Salvataggio…')
                 : confirmation === 'demo'
-                  ? 'Crea backup e carica demo'
-                  : 'Crea backup e svuota'}
+                  ? tr('Crea backup e carica demo')
+                  : tr('Crea backup e svuota')}
             </button>
           </div>
         </Dialog>
@@ -825,48 +934,57 @@ function GitHubSetup({
   onConnected: (v: Vault, t: string) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState<Message>('');
   return (
-    <Dialog title="Collega la tua repository privata" onClose={onClose} wide>
+    <Dialog
+      title={tr('Collega la tua repository privata')}
+      onClose={onClose}
+      wide
+    >
       <div className="setup-guide">
         <div>
           <span>1</span>
           <p>
-            <strong>Crea la repository dei dati</strong>
+            <strong>{tr('Crea la repository dei dati')}</strong>
             <br />
-            Su GitHub scegli <b>Private</b>, un nome come{' '}
-            <code>punto-dati</code> e inizializzala con un README. Usa una
-            repository separata da quella del codice.{' '}
+            {tr('Su GitHub scegli')} <b>Private</b>
+            {tr(', un nome come')} <code>punto-dati</code>{' '}
+            {tr(
+              'e inizializzala con un README. Usa una repository separata da quella del codice.',
+            )}{' '}
             <a href="https://github.com/new" target="_blank" rel="noreferrer">
-              Apri GitHub <ExternalLink size={12} />
+              {tr('Apri GitHub')} <ExternalLink size={12} />
             </a>
           </p>
         </div>
         <div>
           <span>2</span>
           <p>
-            <strong>Crea un token limitato alla repository</strong>
+            <strong>{tr('Crea un token limitato alla repository')}</strong>
             <br />
-            Scegli <b>Fine-grained token → Only select repositories</b>,
-            seleziona la repository dei dati e abilita{' '}
-            <b>Contents: Read and write</b>. Imposta una scadenza.{' '}
+            {tr('Scegli')} <b>Fine-grained token → Only select repositories</b>
+            {tr(', seleziona la repository dei dati e abilita')}{' '}
+            <b>Contents: Read and write</b>
+            {tr('. Imposta una scadenza.')}{' '}
             <a
               href="https://github.com/settings/personal-access-tokens/new"
               target="_blank"
               rel="noreferrer"
             >
-              Crea token <ExternalLink size={12} />
+              {tr('Crea token')} <ExternalLink size={12} />
             </a>
           </p>
         </div>
         <div>
           <span>3</span>
           <p>
-            <strong>Proteggi il collegamento su questo dispositivo</strong>
+            <strong>
+              {tr('Proteggi il collegamento su questo dispositivo')}
+            </strong>
             <br />
-            Incolla il token qui e scegli una password locale di almeno 10
-            caratteri. La password non viene salvata. Non inserire credenziali
-            in chat.
+            {tr(
+              'Incolla il token qui e scegli una password locale di almeno 10 caratteri. La password non viene salvata. Non inserire credenziali in chat.',
+            )}
           </p>
         </div>
       </div>
@@ -894,24 +1012,24 @@ function GitHubSetup({
             );
             await onConnected(vault, token);
           } catch (err) {
-            setError((err as Error).message);
+            setError(toMessage(err));
           } finally {
             setBusy(false);
           }
         }}
       >
         <div className="form-grid">
-          <Field label="Proprietario GitHub">
+          <Field label={tr('Proprietario GitHub')}>
             <input
               name="owner"
               required
               autoComplete="off"
               defaultValue={initial?.owner ?? ''}
-              placeholder="il-tuo-username"
+              placeholder={tr('il-tuo-username')}
               autoFocus
             />
           </Field>
-          <Field label="Nome repository privata">
+          <Field label={tr('Nome repository privata')}>
             <input
               name="repo"
               required
@@ -919,8 +1037,8 @@ function GitHubSetup({
             />
           </Field>
           <Field
-            label="Branch"
-            hint="Vuoto: usa il branch predefinito della repository."
+            label={tr('Branch')}
+            hint={tr('Vuoto: usa il branch predefinito della repository.')}
           >
             <input
               name="branch"
@@ -928,14 +1046,14 @@ function GitHubSetup({
               placeholder="main"
             />
           </Field>
-          <Field label="Percorso del file JSON">
+          <Field label={tr('Percorso del file JSON')}>
             <input
               name="path"
               required
               defaultValue={initial?.path ?? 'dashboard.json'}
             />
           </Field>
-          <Field label="Token GitHub" full>
+          <Field label={tr('Token GitHub')} full>
             <input
               type="password"
               name="token"
@@ -944,7 +1062,7 @@ function GitHubSetup({
               placeholder="github_pat_…"
             />
           </Field>
-          <Field label="Password locale (almeno 10 caratteri)" full>
+          <Field label={tr('Password locale (almeno 10 caratteri)')} full>
             <input
               type="password"
               name="password"
@@ -957,16 +1075,16 @@ function GitHubSetup({
         {error && (
           <p className="inline-error" role="alert">
             <AlertCircle size={17} />
-            {error}
+            {messageText(error)}
           </p>
         )}
         <div className="dialog-actions">
           <button className="button secondary" type="button" onClick={onClose}>
-            Annulla
+            {tr('Annulla')}
           </button>
           <button className="button primary" disabled={busy}>
             <ShieldCheck size={17} />
-            {busy ? 'Verifica e cifratura…' : 'Verifica e collega'}
+            {busy ? tr('Verifica e cifratura…') : tr('Verifica e collega')}
           </button>
         </div>
       </form>

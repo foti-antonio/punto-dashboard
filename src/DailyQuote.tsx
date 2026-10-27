@@ -1,12 +1,16 @@
+import { tr, useLanguage } from './i18n';
 import { useEffect, useState } from 'react';
 import { Leaf } from 'lucide-react';
+import { today } from './domain';
 import { getDailyQuote } from './quotes';
 
 export function DailyQuote() {
-  const [quote, setQuote] = useState(() => getDailyQuote());
+  const { language } = useLanguage();
+  const [date, setDate] = useState(today);
+  const quote = getDailyQuote(date, language);
 
   useEffect(() => {
-    const refresh = () => setQuote(getDailyQuote());
+    const refresh = () => setDate(today());
     const onVisibilityChange = () => {
       if (!document.hidden) refresh();
     };
@@ -24,7 +28,10 @@ export function DailyQuote() {
   }, []);
 
   return (
-    <figure className="sidebar-note" aria-label="Citazione stoica del giorno">
+    <figure
+      className="sidebar-note"
+      aria-label={tr('Citazione stoica del giorno')}
+    >
       <span className="note-icon" aria-hidden="true">
         <Leaf size={18} />
       </span>

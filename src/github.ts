@@ -1,9 +1,11 @@
+import { msg, LocalizedError, toMessage, tr } from './i18n';
 import {
   emptyData,
   equal,
   mergeData,
   resolveMerge,
   validateData,
+  parseDataJSON,
   type Conflict,
   type Data,
 } from './domain';
@@ -70,11 +72,15 @@ export async function encryptToken(
   config: RepoConfig,
 ): Promise<Vault> {
   if (!crypto.subtle)
-    throw new Error(
-      'La cifratura richiede HTTPS oppure localhost. Apri Punto dal suo indirizzo sicuro.',
+    throw new LocalizedError(
+      msg(
+        'La cifratura richiede HTTPS oppure localhost. Apri Punto dal suo indirizzo sicuro.',
+      ),
     );
   if (password.length < 10)
-    throw new Error('Usa una password locale di almeno 10 caratteri.');
+    throw new LocalizedError(
+      msg('Usa una password locale di almeno 10 caratteri.'),
+    );
   const salt = crypto.getRandomValues(new Uint8Array(16)),
     iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await keyFrom(password, salt);
@@ -108,8 +114,10 @@ export async function decryptToken(vault: Vault, password: string) {
     );
     return new TextDecoder().decode(raw);
   } catch {
-    throw new Error(
-      'Password non corretta o collegamento danneggiato. Puoi riconfigurarlo senza perdere i dati locali.',
+    throw new LocalizedError(
+      msg(
+        'Password non corretta o collegamento danneggiato. Puoi riconfigurarlo senza perdere i dati locali.',
+      ),
     );
   }
 }
@@ -128,25 +136,34 @@ async function api(token: string, path: string, init?: RequestInit) {
       cache: 'no-store',
     });
   } catch {
-    throw new Error(
-      'GitHub non raggiungibile. Le modifiche restano salvate sul dispositivo.',
+    throw new LocalizedError(
+      msg(
+        'GitHub non raggiungibile. Le modifiche restano salvate sul dispositivo.',
+      ),
     );
   }
   if (response.status === 401)
-    throw new Error(
-      'Token scaduto o non valido. Riconfigura il collegamento GitHub.',
+    throw new LocalizedError(
+      msg('Token scaduto o non valido. Riconfigura il collegamento GitHub.'),
     );
   if (response.status === 403)
-    throw new Error(
-      'Accesso negato o limite GitHub raggiunto. Controlla scadenza e permessi Contents del token.',
+    throw new LocalizedError(
+      msg(
+        'Accesso negato o limite GitHub raggiunto. Controlla scadenza e permessi Contents del token.',
+      ),
     );
   if (response.status === 409 || response.status === 422)
-    throw new Error(
-      'La versione remota è cambiata o il branch non è scrivibile. Recupera gli aggiornamenti e riprova.',
+    throw new LocalizedError(
+      msg(
+        'La versione remota è cambiata o il branch non è scrivibile. Recupera gli aggiornamenti e riprova.',
+      ),
     );
   if (!response.ok && response.status !== 404)
-    throw new Error(
-      `GitHub ha risposto con errore ${response.status}. I dati locali sono conservati.`,
+    throw new LocalizedError(
+      msg(
+        'GitHub ha risposto con errore {status}. I dati locali sono conservati.',
+        { status: String(response.status) },
+      ),
     );
   return response;
 }
@@ -164,20 +181,24 @@ export async function verifyRepo(
     !config.path.endsWith('.json') ||
     config.path.split('/').some((s) => !s || s === '..' || s === '.')
   )
-    throw new Error('Indica proprietario, repository e percorso JSON validi.');
+    throw new LocalizedError(
+      msg('Indica proprietario, repository e percorso JSON validi.'),
+    );
   const response = await api(token, repoPath(config));
   if (response.status === 404)
-    throw new Error(
-      'Repository non trovata: creala su GitHub e abilitala nel token.',
+    throw new LocalizedError(
+      msg('Repository non trovata: creala su GitHub e abilitala nel token.'),
     );
   const repo = await response.json();
   if (!repo.private)
-    throw new Error(
-      'La repository dei dati deve essere privata. Modifica la visibilità su GitHub.',
+    throw new LocalizedError(
+      msg(
+        'La repository dei dati deve essere privata. Modifica la visibilità su GitHub.',
+      ),
     );
   if (repo.archived)
-    throw new Error(
-      'La repository è archiviata e non può ricevere salvataggi.',
+    throw new LocalizedError(
+      msg('La repository è archiviata e non può ricevere salvataggi.'),
     );
   return { ...config, branch: config.branch || repo.default_branch || 'main' };
 }
@@ -196,22 +217,25 @@ async function readRemote(
     file.size > 10000000 ||
     typeof file.sha !== 'string'
   )
-    throw new Error(
-      'Il percorso remoto non è un file JSON supportato (massimo 10 MB).',
+    throw new LocalizedError(
+      msg('Il percorso remoto non è un file JSON supportato (massimo 10 MB).'),
     );
   let text: string;
   if (file.encoding === 'base64')
     text = new TextDecoder().decode(decode64(file.content));
   else {
     const blob = await api(token, `${repoPath(config)}/git/blobs/${file.sha}`);
-    if (!blob.ok) throw new Error('Impossibile leggere il file remoto.');
+    if (!blob.ok)
+      throw new LocalizedError(msg('Impossibile leggere il file remoto.'));
     const encoded = await blob.json();
     text = new TextDecoder().decode(decode64(encoded.content));
   }
   try {
-    return { data: validateData(JSON.parse(text)), sha: file.sha };
+    return { data: parseDataJSON(text), sha: file.sha };
   } catch (e) {
-    throw new Error('File remoto non valido: ' + (e as Error).message);
+    throw new LocalizedError(
+      msg('File remoto non valido: {message}', { message: toMessage(e) }),
+    );
   }
 }
 export async function getBase(config: RepoConfig) {
@@ -226,8 +250,10 @@ export async function prepareSync(
     local = await loadState(),
     base = await getBase(config);
   if (!remote.data && base)
-    throw new Error(
-      'Il file remoto è stato rimosso o il branch non è disponibile. Verifica GitHub prima di salvare.',
+    throw new LocalizedError(
+      msg(
+        'Il file remoto è stato rimosso o il branch non è disponibile. Verifica GitHub prima di salvare.',
+      ),
     );
   if (!remote.data)
     return {
@@ -256,8 +282,10 @@ export async function finishSync(
   const merged = resolveMerge(plan.data, plan.conflicts, choices);
   const current = await loadState();
   if (current.revision !== plan.revision)
-    throw new Error(
-      'I dati locali sono cambiati durante il confronto. Ripeti la sincronizzazione.',
+    throw new LocalizedError(
+      msg(
+        'I dati locali sono cambiati durante il confronto. Ripeti la sincronizzazione.',
+      ),
     );
   let sha = plan.sha;
   if (push && (!sha || !equal(merged, plan.remote))) {
@@ -265,7 +293,9 @@ export async function finishSync(
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: `Punto: salvataggio ${new Date().toISOString()}`,
+        message: tr('Punto: salvataggio {date}', {
+          date: new Date().toISOString(),
+        }),
         content: encode64(
           new TextEncoder().encode(JSON.stringify(merged, null, 2)),
         ),
@@ -274,8 +304,10 @@ export async function finishSync(
       }),
     });
     if (!response.ok)
-      throw new Error(
-        'Salvataggio GitHub non riuscito. Verifica repository, branch e token.',
+      throw new LocalizedError(
+        msg(
+          'Salvataggio GitHub non riuscito. Verifica repository, branch e token.',
+        ),
       );
     sha = (await response.json()).content.sha;
   }

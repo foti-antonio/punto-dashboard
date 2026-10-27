@@ -1,3 +1,13 @@
+import {
+  msg,
+  LocalizedError,
+  toMessage,
+  messageText,
+  type Message,
+  tr,
+  useLanguage,
+  initializeLanguage,
+} from './i18n';
 import React, { useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
@@ -7,10 +17,12 @@ import { Context } from './context';
 import { initializeTheme } from './theme';
 import './styles.css';
 initializeTheme();
+initializeLanguage();
 function Root() {
+  useLanguage();
   const [state, setState] = useState<StoredState>();
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState<Message>('');
+  const [message, setMessage] = useState<Message>('');
   useEffect(() => {
     let active = true;
     const reload = () =>
@@ -19,7 +31,7 @@ function Root() {
           if (active) setState(s);
         })
         .catch((e) => {
-          if (active) setError(e.message);
+          if (active) setError(toMessage(e));
         });
     reload();
     const off = subscribe(reload);
@@ -44,9 +56,9 @@ function Root() {
   if (error)
     return (
       <main className="fatal">
-        <h1>Il tuo archivio non è disponibile</h1>
-        <p>{error}</p>
-        <button onClick={() => location.reload()}>Riprova</button>
+        <h1>{tr('Il tuo archivio non è disponibile')}</h1>
+        <p>{messageText(error)}</p>
+        <button onClick={() => location.reload()}>{tr('Riprova')}</button>
       </main>
     );
   if (!state)
@@ -55,7 +67,7 @@ function Root() {
         <span className="brand-mark">
           p<span>•</span>
         </span>
-        <p>Apro il tuo spazio…</p>
+        <p>{tr('Apro il tuo spazio…')}</p>
       </main>
     );
   return (
@@ -70,8 +82,10 @@ function Root() {
               (d.entities[entity.id].updatedAt !== entity.updatedAt ||
                 d.entities[entity.id].deletedAt)
             )
-              throw new Error(
-                'Questo elemento è cambiato in un’altra scheda o durante il confronto GitHub. Chiudi e riapri il modulo per usare la versione aggiornata.',
+              throw new LocalizedError(
+                msg(
+                  'Questo elemento è cambiato in un’altra scheda o durante il confronto GitHub. Chiudi e riapri il modulo per usare la versione aggiornata.',
+                ),
               );
             d.entities[entity.id] = { ...entity, updatedAt: stamp() };
             return d;
@@ -80,10 +94,12 @@ function Root() {
           update((d) => {
             const entity = d.entities[id];
             if (!entity || entity.type === 'settings')
-              throw new Error('Elemento non eliminabile.');
+              throw new LocalizedError(msg('Elemento non eliminabile.'));
             if (expectedUpdatedAt && entity.updatedAt !== expectedUpdatedAt)
-              throw new Error(
-                'Questo elemento è stato modificato. Chiudi e riapri il modulo prima di eliminarlo.',
+              throw new LocalizedError(
+                msg(
+                  'Questo elemento è stato modificato. Chiudi e riapri il modulo prima di eliminarlo.',
+                ),
               );
             if (
               entity.type === 'account' &&
@@ -95,8 +111,10 @@ function Root() {
                     (e.type === 'forecast' && e.accountId === id)),
               )
             )
-              throw new Error(
-                'Il conto ha movimenti collegati: conserva il conto per mantenere i saldi.',
+              throw new LocalizedError(
+                msg(
+                  'Il conto ha movimenti collegati: conserva il conto per mantenere i saldi.',
+                ),
               );
             d.entities[id] = {
               ...entity,
@@ -111,10 +129,10 @@ function Root() {
       <App />
       {message && (
         <div className="toast" role="status">
-          <span>{message}</span>
+          <span>{messageText(message)}</span>
           <button
             className="icon-button"
-            aria-label="Chiudi notifica"
+            aria-label={tr('Chiudi notifica')}
             onClick={() => setMessage('')}
           >
             ×
@@ -122,6 +140,20 @@ function Root() {
         </div>
       )}
     </Context.Provider>
+  );
+}
+function FatalError() {
+  useLanguage();
+  return (
+    <main className="fatal">
+      <h1>{tr('Qualcosa non ha funzionato')}</h1>
+      <p>
+        {tr(
+          'I dati già salvati sono nel browser. Ricarica la pagina per riprovare.',
+        )}
+      </p>
+      <button onClick={() => location.reload()}>{tr('Ricarica')}</button>
+    </main>
   );
 }
 class ErrorBoundary extends React.Component<
@@ -133,17 +165,7 @@ class ErrorBoundary extends React.Component<
     return { error: true };
   }
   render() {
-    return this.state.error ? (
-      <main className="fatal">
-        <h1>Qualcosa non ha funzionato</h1>
-        <p>
-          I dati già salvati sono nel browser. Ricarica la pagina per riprovare.
-        </p>
-        <button onClick={() => location.reload()}>Ricarica</button>
-      </main>
-    ) : (
-      this.props.children
-    );
+    return this.state.error ? <FatalError /> : this.props.children;
   }
 }
 createRoot(document.getElementById('root')!).render(

@@ -1,3 +1,13 @@
+import {
+  msg,
+  LocalizedError,
+  toMessage,
+  messageText,
+  type Message,
+  tr,
+  useLanguage,
+} from './i18n';
+import { MoneyInput } from './MoneyInput';
 import { useState, type FormEvent } from 'react';
 import { AlertCircle, Trash2, Save } from 'lucide-react';
 import { useApp } from './context';
@@ -8,7 +18,6 @@ import {
   newId,
   stamp,
   today,
-  moneyInput,
   parseMoney,
   type Kind,
   type Entity,
@@ -27,15 +36,15 @@ export interface FormSpec {
   entity?: Entity;
   defaults?: Partial<Transaction | Task | Forecast>;
 }
-const labels: Record<FormKind, string> = {
-  transaction: 'movimento',
-  account: 'conto',
-  project: 'progetto',
-  task: 'attività',
-  forecast: 'previsione',
-  category: 'categoria',
-  scenario: 'scenario',
-};
+const formTitles = {
+  transaction: ['Nuovo movimento', 'Modifica movimento'],
+  account: ['Nuovo conto', 'Modifica conto'],
+  project: ['Nuovo progetto', 'Modifica progetto'],
+  task: ['Nuova attività', 'Modifica attività'],
+  forecast: ['Nuova previsione', 'Modifica previsione'],
+  category: ['Nuova categoria', 'Modifica categoria'],
+  scenario: ['Nuovo scenario', 'Modifica scenario'],
+} as const;
 export function EntityForm({
   spec,
   onClose,
@@ -43,12 +52,13 @@ export function EntityForm({
   spec: FormSpec;
   onClose: () => void;
 }) {
+  useLanguage();
   const { data, save, remove, toast } = useApp();
   const { kind, entity } = spec;
   const value = { ...entity, ...spec.defaults } as Record<string, unknown>;
   const initial = (key: string, fallback = '') =>
     String(value[key] ?? fallback);
-  const [error, setError] = useState(''),
+  const [error, setError] = useState<Message>(''),
     [busy, setBusy] = useState(false),
     [deleting, setDeleting] = useState(false);
   const accounts = list(data, 'account');
@@ -65,8 +75,6 @@ export function EntityForm({
       ? (account?.scope ?? 'lavoro')
       : scope;
   const hasMoney = kind === 'transaction' || kind === 'forecast';
-  const getMoney = (key: string) =>
-    value[key] === undefined ? '' : moneyInput(Number(value[key]));
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -82,7 +90,7 @@ export function EntityForm({
         updatedAt: entity?.updatedAt ?? stamp(),
         name: str('name'),
       };
-      if (!base.name) throw new Error('Scrivi un nome.');
+      if (!base.name) throw new LocalizedError(msg('Scrivi un nome.'));
       let next: Entity;
       if (kind === 'account')
         next = {
@@ -141,8 +149,8 @@ export function EntityForm({
         } as Scenario;
       else {
         if (!account)
-          throw new Error(
-            'Aggiungi prima un conto per registrare i movimenti.',
+          throw new LocalizedError(
+            msg('Aggiungi prima un conto per registrare i movimenti.'),
           );
         const common = {
           ...base,
@@ -173,12 +181,12 @@ export function EntityForm({
       await save(next);
       toast(
         entity
-          ? 'Modifiche salvate sul dispositivo.'
-          : 'Elemento aggiunto e salvato sul dispositivo.',
+          ? msg('Modifiche salvate sul dispositivo.')
+          : msg('Elemento aggiunto e salvato sul dispositivo.'),
       );
       onClose();
     } catch (e) {
-      setError((e as Error).message);
+      setError(toMessage(e));
     } finally {
       setBusy(false);
     }
@@ -187,22 +195,22 @@ export function EntityForm({
     setBusy(true);
     try {
       await remove(entity!.id, entity!.updatedAt);
-      toast('Elemento eliminato.');
+      toast(msg('Elemento eliminato.'));
       onClose();
     } catch (e) {
-      setError((e as Error).message);
+      setError(toMessage(e));
     } finally {
       setBusy(false);
     }
   }
   const projectSelect = (
-    <Field label="Progetto">
+    <Field label={tr('Progetto')}>
       <select
         name="projectId"
         defaultValue={initial('projectId')}
         key={effectiveScope}
       >
-        <option value="">Nessun progetto</option>
+        <option value="">{tr('Nessun progetto')}</option>
         {list(data, 'project')
           .filter(
             (p) =>
@@ -218,25 +226,22 @@ export function EntityForm({
     </Field>
   );
   const scopeSelect = (
-    <Field label="Ambito">
+    <Field label={tr('Ambito')}>
       <select
         name="scope"
         value={scope}
         onChange={(e) => setScope(e.target.value as Scope)}
       >
-        <option value="lavoro">Lavoro</option>
-        <option value="personale">Personale</option>
+        <option value="lavoro">{tr('Lavoro')}</option>
+        <option value="personale">{tr('Personale')}</option>
       </select>
     </Field>
   );
   return (
-    <Dialog
-      title={`${entity ? 'Modifica' : kind === 'task' || kind === 'forecast' || kind === 'category' ? 'Nuova' : 'Nuovo'} ${labels[kind]}`}
-      onClose={onClose}
-    >
+    <Dialog title={tr(formTitles[kind][entity ? 1 : 0])} onClose={onClose}>
       <form onSubmit={submit} className="entity-form">
         <div className="form-grid">
-          <Field label={hasMoney ? 'Descrizione' : 'Nome'} full>
+          <Field label={hasMoney ? tr('Descrizione') : tr('Nome')} full>
             <input
               name="name"
               autoFocus
@@ -245,12 +250,12 @@ export function EntityForm({
               defaultValue={initial('name')}
               placeholder={
                 kind === 'project'
-                  ? 'A cosa stai lavorando?'
+                  ? tr('A cosa stai lavorando?')
                   : kind === 'task'
-                    ? 'Cosa devi fare?'
+                    ? tr('Cosa devi fare?')
                     : kind === 'account'
-                      ? 'Es. Conto principale'
-                      : 'Dai un nome chiaro'
+                      ? tr('Es. Conto principale')
+                      : tr('Dai un nome chiaro')
               }
             />
           </Field>
@@ -258,17 +263,19 @@ export function EntityForm({
             <>
               {scopeSelect}
               <Field
-                label="Saldo iniziale (€)"
-                hint="Il saldo alla data di partenza, prima dei movimenti."
+                label={tr('Saldo iniziale (€)')}
+                hint={tr(
+                  'Il saldo alla data di partenza, prima dei movimenti.',
+                )}
               >
-                <input
+                <MoneyInput
                   name="openingCents"
                   inputMode="decimal"
-                  defaultValue={getMoney('openingCents') || '0,00'}
+                  defaultCents={Number(value.openingCents ?? 0)}
                   required
                 />
               </Field>
-              <Field label="Data del saldo iniziale">
+              <Field label={tr('Data del saldo iniziale')}>
                 <input
                   type="date"
                   name="openingDate"
@@ -280,7 +287,7 @@ export function EntityForm({
             </>
           )}
           {kind === 'category' && (
-            <Field label="Colore">
+            <Field label={tr('Colore')}>
               <input
                 type="color"
                 name="color"
@@ -290,28 +297,30 @@ export function EntityForm({
           )}
           {kind === 'project' && (
             <>
-              <Field label="Descrizione" full>
+              <Field label={tr('Descrizione')} full>
                 <textarea
                   name="description"
                   defaultValue={initial('description')}
                   rows={2}
-                  placeholder="Il contesto, l’idea, il risultato che vuoi ottenere."
+                  placeholder={tr(
+                    'Il contesto, l’idea, il risultato che vuoi ottenere.',
+                  )}
                 />
               </Field>
               {scopeSelect}
-              <Field label="Stato">
+              <Field label={tr('Stato')}>
                 <select
                   name="status"
                   defaultValue={initial('status', 'attivo')}
                 >
-                  <option value="idea">Idea</option>
-                  <option value="attivo">Attivo</option>
-                  <option value="pausa">In pausa</option>
-                  <option value="completato">Completato</option>
-                  <option value="archiviato">Archiviato</option>
+                  <option value="idea">{tr('Idea')}</option>
+                  <option value="attivo">{tr('Attivo')}</option>
+                  <option value="pausa">{tr('In pausa')}</option>
+                  <option value="completato">{tr('Completato')}</option>
+                  <option value="archiviato">{tr('Archiviato')}</option>
                 </select>
               </Field>
-              <Field label="Data di inizio">
+              <Field label={tr('Data di inizio')}>
                 <input
                   type="date"
                   name="startDate"
@@ -319,39 +328,39 @@ export function EntityForm({
                   required
                 />
               </Field>
-              <Field label="Data obiettivo">
+              <Field label={tr('Data obiettivo')}>
                 <input
                   type="date"
                   name="endDate"
                   defaultValue={initial('endDate')}
                 />
               </Field>
-              <Field label="Obiettivo economico (€)">
-                <input
+              <Field label={tr('Obiettivo economico (€)')}>
+                <MoneyInput
                   name="targetCents"
                   inputMode="decimal"
-                  defaultValue={getMoney('targetCents') || '0,00'}
+                  defaultCents={Number(value.targetCents ?? 0)}
                 />
               </Field>
-              <Field label="Colore">
+              <Field label={tr('Colore')}>
                 <select name="color" defaultValue={initial('color', colors[0])}>
                   {colors.map((c, i) => (
                     <option key={c} value={c}>
                       {
                         [
-                          'Verde bosco',
-                          'Ocra',
-                          'Lavanda',
-                          'Azzurro',
-                          'Terracotta',
-                          'Salvia',
+                          tr('Verde bosco'),
+                          tr('Ocra'),
+                          tr('Lavanda'),
+                          tr('Azzurro'),
+                          tr('Terracotta'),
+                          tr('Salvia'),
                         ][i]
                       }
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Note" full>
+              <Field label={tr('Note')} full>
                 <textarea
                   name="notes"
                   rows={3}
@@ -364,30 +373,32 @@ export function EntityForm({
             <>
               {scopeSelect}
               {projectSelect}
-              <Field label="Stato">
+              <Field label={tr('Stato')}>
                 <select name="status" defaultValue={initial('status', 'todo')}>
-                  <option value="todo">Da fare</option>
-                  <option value="doing">In corso</option>
-                  <option value="done">Fatto</option>
+                  <option value="todo">{tr('Da fare')}</option>
+                  <option value="doing">{tr('In corso')}</option>
+                  <option value="done">{tr('Fatto')}</option>
                 </select>
               </Field>
-              <Field label="Priorità">
+              <Field label={tr('Priorità')}>
                 <select
                   name="priority"
                   defaultValue={initial('priority', 'media')}
                 >
-                  <option value="alta">Alta</option>
-                  <option value="media">Media</option>
-                  <option value="bassa">Bassa</option>
+                  <option value="alta">{tr('Alta')}</option>
+                  <option value="media">{tr('Media')}</option>
+                  <option value="bassa">{tr('Bassa')}</option>
                 </select>
               </Field>
-              <Field label="Scadenza">
+              <Field label={tr('Scadenza')}>
                 <input type="date" name="due" defaultValue={initial('due')} />
               </Field>
               <Field
-                label="Sottoattività"
+                label={tr('Sottoattività')}
                 full
-                hint="Una per riga. Inizia con [x] per indicare quelle completate."
+                hint={tr(
+                  'Una per riga. Inizia con [x] per indicare quelle completate.',
+                )}
               >
                 <textarea
                   name="subtasks"
@@ -399,10 +410,10 @@ export function EntityForm({
                           .join('\n')
                       : ''
                   }
-                  placeholder="[ ] Prima cosa da fare"
+                  placeholder={tr('[ ] Prima cosa da fare')}
                 />
               </Field>
-              <Field label="Note" full>
+              <Field label={tr('Note')} full>
                 <textarea
                   name="notes"
                   rows={2}
@@ -413,28 +424,31 @@ export function EntityForm({
           )}
           {hasMoney && (
             <>
-              <Field label="Tipo">
+              <Field label={tr('Tipo')}>
                 <select
                   value={direction}
                   onChange={(e) => setDirection(e.target.value)}
                 >
-                  <option value="expense">Uscita</option>
-                  <option value="income">Entrata</option>
+                  <option value="expense">{tr('Uscita')}</option>
+                  <option value="income">{tr('Entrata')}</option>
                   {kind === 'transaction' && !initial('forecastKey') && (
-                    <option value="transfer">Trasferimento</option>
+                    <option value="transfer">{tr('Trasferimento')}</option>
                   )}
                 </select>
               </Field>
-              <Field label="Importo (€)">
-                <input
+              <Field label={tr('Importo (€)')}>
+                <MoneyInput
                   name="amountCents"
                   inputMode="decimal"
-                  defaultValue={getMoney('amountCents')}
-                  placeholder="0,00"
+                  defaultCents={
+                    value.amountCents === undefined
+                      ? undefined
+                      : Number(value.amountCents)
+                  }
                   required
                 />
               </Field>
-              <Field label="Data">
+              <Field label={tr('Data')}>
                 <input
                   type="date"
                   name="date"
@@ -444,36 +458,40 @@ export function EntityForm({
                   required
                 />
               </Field>
-              <Field label={direction === 'transfer' ? 'Dal conto' : 'Conto'}>
+              <Field
+                label={direction === 'transfer' ? tr('Dal conto') : tr('Conto')}
+              >
                 <select
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   required
                 >
                   <option value="" disabled>
-                    Scegli un conto
+                    {tr('Scegli un conto')}
                   </option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} · {a.scope === 'lavoro' ? 'Lavoro' : 'Personale'}
+                      {a.name} ·{' '}
+                      {a.scope === 'lavoro' ? tr('Lavoro') : tr('Personale')}
                     </option>
                   ))}
                 </select>
               </Field>
               {!accounts.length && (
                 <p className="inline-error full">
-                  Aggiungi un conto dalla sezione Finanze prima di registrare un
-                  movimento.
+                  {tr(
+                    'Aggiungi un conto dalla sezione Finanze prima di registrare un movimento.',
+                  )}
                 </p>
               )}
               {direction === 'transfer' ? (
-                <Field label="Al conto">
+                <Field label={tr('Al conto')}>
                   <select
                     name="toAccountId"
                     required
                     defaultValue={initial('toAccountId')}
                   >
-                    <option value="">Scegli la destinazione</option>
+                    <option value="">{tr('Scegli la destinazione')}</option>
                     {accounts
                       .filter((a) => a.id !== accountId)
                       .map((a) => (
@@ -485,7 +503,7 @@ export function EntityForm({
                 </Field>
               ) : (
                 <>
-                  <Field label="Categoria">
+                  <Field label={tr('Categoria')}>
                     <select
                       name="categoryId"
                       defaultValue={initial('categoryId')}
@@ -498,18 +516,18 @@ export function EntityForm({
               )}
               {kind === 'forecast' && (
                 <>
-                  <Field label="Ripetizione">
+                  <Field label={tr('Ripetizione')}>
                     <select
                       name="recurrence"
                       defaultValue={initial('recurrence', 'none')}
                     >
-                      <option value="none">Una sola volta</option>
-                      <option value="weekly">Ogni settimana</option>
-                      <option value="monthly">Ogni mese</option>
-                      <option value="yearly">Ogni anno</option>
+                      <option value="none">{tr('Una sola volta')}</option>
+                      <option value="weekly">{tr('Ogni settimana')}</option>
+                      <option value="monthly">{tr('Ogni mese')}</option>
+                      <option value="yearly">{tr('Ogni anno')}</option>
                     </select>
                   </Field>
-                  <Field label="Fine ricorrenza (facoltativa)">
+                  <Field label={tr('Fine ricorrenza (facoltativa)')}>
                     <input
                       type="date"
                       name="endDate"
@@ -519,7 +537,7 @@ export function EntityForm({
                 </>
               )}
               {kind === 'transaction' && (
-                <Field label="Note" full>
+                <Field label={tr('Note')} full>
                   <textarea
                     name="notes"
                     rows={2}
@@ -529,31 +547,33 @@ export function EntityForm({
               )}
               {initial('forecastKey') && (
                 <p className="form-hint full">
-                  Questo movimento è collegato a una previsione: dopo il
-                  salvataggio, la relativa occorrenza non sarà più conteggiata.
+                  {tr(
+                    'Questo movimento è collegato a una previsione: dopo il salvataggio, la relativa occorrenza non sarà più conteggiata.',
+                  )}
                 </p>
               )}
             </>
           )}
           {kind === 'scenario' && (
             <p className="form-hint full">
-              Lo scenario parte dalle previsioni di base. Potrai cambiare
-              importi e date dei singoli movimenti senza modificare i dati
-              reali.
+              {tr(
+                'Lo scenario parte dalle previsioni di base. Potrai cambiare importi e date dei singoli movimenti senza modificare i dati reali.',
+              )}
             </p>
           )}
         </div>
         {error && (
           <p className="inline-error" role="alert">
             <AlertCircle size={17} />
-            {error}
+            {messageText(error)}
           </p>
         )}
         {deleting && (
           <div className="delete-confirm">
             <p>
-              Eliminare questo elemento? I riferimenti storici saranno
-              conservati per la sincronizzazione.
+              {tr(
+                'Eliminare questo elemento? I riferimenti storici saranno conservati per la sincronizzazione.',
+              )}
             </p>
             <button
               className="button danger"
@@ -561,14 +581,14 @@ export function EntityForm({
               type="button"
               onClick={deleteEntity}
             >
-              Conferma eliminazione
+              {tr('Conferma eliminazione')}
             </button>
             <button
               className="text-button"
               type="button"
               onClick={() => setDeleting(false)}
             >
-              Annulla
+              {tr('Annulla')}
             </button>
           </div>
         )}
@@ -577,14 +597,14 @@ export function EntityForm({
             <button
               type="button"
               className="icon-button delete-button"
-              aria-label="Elimina elemento"
+              aria-label={tr('Elimina elemento')}
               onClick={() => setDeleting(true)}
             >
               <Trash2 size={18} />
             </button>
           )}
           <button className="button secondary" type="button" onClick={onClose}>
-            Annulla
+            {tr('Annulla')}
           </button>
           <button
             className="button primary"
@@ -592,7 +612,7 @@ export function EntityForm({
             disabled={busy || (hasMoney && !accounts.length)}
           >
             <Save size={16} />
-            {busy ? 'Salvataggio…' : 'Salva'}
+            {busy ? tr('Salvataggio…') : tr('Salva')}
           </button>
         </div>
       </form>

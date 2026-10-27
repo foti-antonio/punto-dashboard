@@ -1,3 +1,14 @@
+import {
+  msg,
+  toMessage,
+  messageText,
+  type Message,
+  tr,
+  locale,
+  numberLabel,
+  useLanguage,
+} from './i18n';
+import { MoneyInput } from './MoneyInput';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   LayoutDashboard,
@@ -50,7 +61,6 @@ import {
   newId,
   stamp,
   parseMoney,
-  moneyInput,
   type Scope,
   type Data,
   type Project,
@@ -85,32 +95,43 @@ type Page =
   | 'settings';
 type Period = 'month' | '90days' | 'year' | 'all';
 type FilterScope = 'all' | Scope;
-const navigation: { id: Page; label: string; icon: typeof Wallet }[] = [
-  { id: 'overview', label: 'Panoramica', icon: LayoutDashboard },
-  { id: 'projects', label: 'Progetti', icon: FolderKanban },
-  { id: 'finance', label: 'Finanze', icon: Wallet },
-  { id: 'tasks', label: 'Attività', icon: CheckSquare2 },
-  { id: 'forecast', label: 'Previsioni', icon: TrendingUp },
-  { id: 'analytics', label: 'Analisi', icon: ChartNoAxesCombined },
+const navigation = (): { id: Page; label: string; icon: typeof Wallet }[] => [
+  { id: 'overview', label: tr('Panoramica'), icon: LayoutDashboard },
+  { id: 'projects', label: tr('Progetti'), icon: FolderKanban },
+  { id: 'finance', label: tr('Finanze'), icon: Wallet },
+  { id: 'tasks', label: tr('Attività'), icon: CheckSquare2 },
+  { id: 'forecast', label: tr('Previsioni'), icon: TrendingUp },
+  { id: 'analytics', label: tr('Analisi'), icon: ChartNoAxesCombined },
 ];
-const pageInfo: Record<Page, [string, string]> = {
-  overview: ['Panoramica', 'Tutto al suo posto. Uno sguardo a ciò che conta.'],
-  projects: ['Progetti', 'Dai spazio alle idee, tieni il passo sui risultati.'],
-  finance: ['Finanze', 'Ogni movimento, una visione più chiara.'],
-  tasks: ['Attività', 'Una cosa alla volta, nella direzione giusta.'],
-  forecast: ['Previsioni', 'Guarda avanti, con più tranquillità.'],
-  analytics: ['Analisi', 'I numeri raccontano come stai andando.'],
-  settings: ['Il tuo spazio', 'Preferenze, dati e collegamento a GitHub.'],
-};
-const statusLabels: Record<Project['status'], string> = {
-  idea: 'Idea',
-  attivo: 'Attivo',
-  pausa: 'In pausa',
-  completato: 'Completato',
-  archiviato: 'Archiviato',
-};
+const pageInfo = (): Record<Page, [string, string]> => ({
+  overview: [
+    tr('Panoramica'),
+    tr('Tutto al suo posto. Uno sguardo a ciò che conta.'),
+  ],
+  projects: [
+    tr('Progetti'),
+    tr('Dai spazio alle idee, tieni il passo sui risultati.'),
+  ],
+  finance: [tr('Finanze'), tr('Ogni movimento, una visione più chiara.')],
+  tasks: [tr('Attività'), tr('Una cosa alla volta, nella direzione giusta.')],
+  forecast: [tr('Previsioni'), tr('Guarda avanti, con più tranquillità.')],
+  analytics: [tr('Analisi'), tr('I numeri raccontano come stai andando.')],
+  settings: [
+    tr('Il tuo spazio'),
+    tr('Preferenze, dati e collegamento a GitHub.'),
+  ],
+});
+const statusLabels = (): Record<Project['status'], string> => ({
+  idea: tr('Idea'),
+  attivo: tr('Attivo'),
+  pausa: tr('In pausa'),
+  completato: tr('Completato'),
+  archiviato: tr('Archiviato'),
+});
+const priorityLabel = (priority: Task['priority']) =>
+  tr(({ alta: 'Alta', media: 'Media', bassa: 'Bassa' } as const)[priority]);
 const monthLabel = (date: string) =>
-  new Intl.DateTimeFormat('it-IT', { month: 'short', timeZone: 'UTC' }).format(
+  new Intl.DateTimeFormat(locale(), { month: 'short', timeZone: 'UTC' }).format(
     new Date(date + 'T12:00:00Z'),
   );
 export function periodStart(period: Period) {
@@ -153,10 +174,11 @@ function history(data: Data, scope: FilterScope) {
   });
 }
 export function App() {
+  const { language } = useLanguage();
   const { data, toast } = useApp();
   const readPage = () => {
     const hash = location.hash.slice(1);
-    return [...navigation.map((n) => n.id), 'settings'].includes(hash)
+    return [...navigation().map((n) => n.id), 'settings'].includes(hash)
       ? (hash as Page)
       : 'overview';
   };
@@ -169,7 +191,7 @@ export function App() {
     [detail, setDetail] = useState<string | null>(null),
     [importing, setImporting] = useState(false);
   const [syncIndicator, setSyncIndicator] = useState<SyncIndicator>({
-    label: 'Solo su questo dispositivo',
+    label: msg('Solo su questo dispositivo'),
     status: 'local',
   });
   const navigate = (p: Page) => {
@@ -185,8 +207,8 @@ export function App() {
     return () => window.removeEventListener('hashchange', listener);
   }, []);
   useEffect(() => {
-    document.title = `${pageInfo[page][0]} · Punto`;
-  }, [page]);
+    document.title = `${pageInfo()[page][0]} · Punto`;
+  }, [page, language]);
   const settings = data.entities.settings as Settings,
     unfinished = list(data, 'task').filter((t) => t.status !== 'done').length;
   const openForm = (spec: FormSpec) => {
@@ -201,7 +223,7 @@ export function App() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
-        Vai al contenuto
+        {tr('Vai al contenuto')}
       </a>
       {mobileMenu && (
         <div className="sidebar-shade" onClick={() => setMobileMenu(false)} />
@@ -211,7 +233,7 @@ export function App() {
           className="brand"
           href="#overview"
           onClick={() => navigate('overview')}
-          aria-label="Punto, panoramica"
+          aria-label={tr('Punto, panoramica')}
         >
           <span className="brand-mark">
             p<span>•</span>
@@ -222,14 +244,14 @@ export function App() {
         </a>
         <button
           className="icon-button mobile-close"
-          aria-label="Chiudi menu"
+          aria-label={tr('Chiudi menu')}
           onClick={() => setMobileMenu(false)}
         >
           <X size={20} />
         </button>
-        <div className="workspace-label">IL TUO SPAZIO</div>
-        <nav aria-label="Navigazione principale">
-          {navigation.map(({ id, label, icon: Icon }) => (
+        <div className="workspace-label">{tr('IL TUO SPAZIO')}</div>
+        <nav aria-label={tr('Navigazione principale')}>
+          {navigation().map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               aria-label={label}
@@ -240,7 +262,7 @@ export function App() {
               <Icon size={19} strokeWidth={1.7} />
               <span>{label}</span>
               {id === 'tasks' && unfinished > 0 && (
-                <span className="nav-count">{unfinished}</span>
+                <span className="nav-count">{numberLabel(unfinished)}</span>
               )}
             </button>
           ))}
@@ -252,15 +274,17 @@ export function App() {
             onClick={() => navigate('settings')}
           >
             <Settings2 size={19} />
-            <span>Impostazioni</span>
+            <span>{tr('Impostazioni')}</span>
           </button>
           <button className="profile" onClick={() => navigate('settings')}>
             <span className="avatar">
-              {settings.name ? settings.name.slice(0, 2).toUpperCase() : 'TU'}
+              {settings.name
+                ? settings.name.slice(0, 2).toUpperCase()
+                : tr('TU')}
             </span>
             <span>
-              <strong>{settings.name || 'Il tuo profilo'}</strong>
-              <small>Il tuo spazio personale</small>
+              <strong>{settings.name || tr('Il tuo profilo')}</strong>
+              <small>{tr('Il tuo spazio personale')}</small>
             </span>
             <ChevronDown size={15} />
           </button>
@@ -271,27 +295,27 @@ export function App() {
           <div>
             <button
               className="icon-button mobile-toggle"
-              aria-label="Apri menu"
+              aria-label={tr('Apri menu')}
               onClick={() => setMobileMenu(true)}
             >
               <Menu size={21} />
             </button>
             <span className="breadcrumb">
-              Il mio spazio <ChevronRight size={13} />
-              <strong>{pageInfo[page][0]}</strong>
+              {tr('Il mio spazio')} <ChevronRight size={13} />
+              <strong>{pageInfo()[page][0]}</strong>
             </span>
           </div>
           <div className="topbar-right">
             <button
               className={`sync-indicator ${syncIndicator.status}`}
               onClick={() => navigate('settings')}
-              title="Apri le impostazioni di sincronizzazione"
+              title={tr('Apri le impostazioni di sincronizzazione')}
             >
               <i />
-              {syncIndicator.label}
+              {messageText(syncIndicator.label)}
             </button>
             <span className="topbar-date">
-              {new Intl.DateTimeFormat('it-IT', {
+              {new Intl.DateTimeFormat(locale(), {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',
@@ -305,14 +329,14 @@ export function App() {
             <div>
               <p className="eyebrow">
                 {page === 'overview'
-                  ? `IL QUADRO D’INSIEME`
-                  : 'IL TUO SPAZIO, OGNI GIORNO'}
+                  ? tr('IL QUADRO D’INSIEME')
+                  : tr('IL TUO SPAZIO, OGNI GIORNO')}
               </p>
               <h1>
-                {pageInfo[page][0]}
+                {pageInfo()[page][0]}
                 <span className="heading-dot">.</span>
               </h1>
-              <p>{pageInfo[page][1]}</p>
+              <p>{pageInfo()[page][1]}</p>
             </div>
             <div className="new-control">
               <button
@@ -321,7 +345,7 @@ export function App() {
                 onClick={() => setAddMenu(!addMenu)}
               >
                 <Plus size={18} />
-                Aggiungi
+                {tr('Aggiungi')}
                 <ChevronDown size={15} />
               </button>
               {addMenu && (
@@ -333,22 +357,30 @@ export function App() {
                   <div
                     className="dropdown"
                     role="group"
-                    aria-label="Aggiungi elemento"
+                    aria-label={tr('Aggiungi elemento')}
                   >
                     {[
-                      { kind: 'transaction', label: 'Movimento', icon: Wallet },
+                      {
+                        kind: 'transaction',
+                        label: tr('Movimento'),
+                        icon: Wallet,
+                      },
                       {
                         kind: 'project',
-                        label: 'Progetto',
+                        label: tr('Progetto'),
                         icon: FolderKanban,
                       },
-                      { kind: 'task', label: 'Attività', icon: CheckSquare2 },
+                      {
+                        kind: 'task',
+                        label: tr('Attività'),
+                        icon: CheckSquare2,
+                      },
                       {
                         kind: 'forecast',
-                        label: 'Previsione',
+                        label: tr('Previsione'),
                         icon: TrendingUp,
                       },
-                      { kind: 'account', label: 'Conto', icon: HardDrive },
+                      { kind: 'account', label: tr('Conto'), icon: HardDrive },
                     ].map(({ kind, label, icon: Icon }) => (
                       <button
                         key={kind}
@@ -369,24 +401,24 @@ export function App() {
             <div className="demo-banner">
               <span>
                 <span className="tiny-dot" />
-                Stai esplorando dati dimostrativi.
+                {tr('Stai esplorando dati dimostrativi.')}
               </span>
               <button
                 className="text-button"
                 onClick={() => navigate('settings')}
               >
-                Gestisci i dati <ArrowRight size={14} />
+                {tr('Gestisci i dati')} <ArrowRight size={14} />
               </button>
             </div>
           )}
           {page !== 'settings' && (
             <div className="filter-bar">
-              <div className="scope-switch" aria-label="Ambito">
+              <div className="scope-switch" aria-label={tr('Ambito')}>
                 {(
                   [
-                    ['all', 'Tutto'],
-                    ['lavoro', 'Lavoro'],
-                    ['personale', 'Personale'],
+                    ['all', tr('Tutto')],
+                    ['lavoro', tr('Lavoro')],
+                    ['personale', tr('Personale')],
                   ] as const
                 ).map(([s, label]) => (
                   <button
@@ -405,25 +437,25 @@ export function App() {
                 <label className="period-select">
                   <CalendarDays size={16} />
                   <select
-                    aria-label="Periodo"
+                    aria-label={tr('Periodo')}
                     value={period}
                     onChange={(e) => setPeriod(e.target.value as Period)}
                   >
-                    <option value="month">Questo mese</option>
-                    <option value="90days">Ultimi 90 giorni</option>
-                    <option value="year">Quest’anno</option>
-                    <option value="all">Tutto il periodo</option>
+                    <option value="month">{tr('Questo mese')}</option>
+                    <option value="90days">{tr('Ultimi 90 giorni')}</option>
+                    <option value="year">{tr('Quest’anno')}</option>
+                    <option value="all">{tr('Tutto il periodo')}</option>
                   </select>
                 </label>
               ) : (
                 <span className="filter-caption">
                   {page === 'forecast'
-                    ? 'Orizzonte: prossimi 6 mesi'
+                    ? tr('Orizzonte: prossimi 6 mesi')
                     : scope === 'all'
-                      ? 'Una visione completa'
+                      ? tr('Una visione completa')
                       : scope === 'lavoro'
-                        ? 'Il tuo ambito lavorativo'
-                        : 'La tua vita personale'}
+                        ? tr('Il tuo ambito lavorativo')
+                        : tr('La tua vita personale')}
                 </span>
               )}
             </div>
@@ -471,9 +503,9 @@ export function App() {
           <footer className="page-footer">
             <span>
               <span className="footer-dot" />
-              Un po’ più di chiarezza, ogni giorno.
+              {tr('Un po’ più di chiarezza, ogni giorno.')}
             </span>
-            <span>Fatto per te · EUR · Europe/Rome</span>
+            <span>{tr('Fatto per te · EUR · Europe/Rome')}</span>
           </footer>
         </main>
       </div>
@@ -535,28 +567,32 @@ function Stats({ scope, period }: { scope: FilterScope; period: Period }) {
   return (
     <div className="metrics-grid">
       <Metric
-        label="Disponibilità attuale"
+        label={tr('Disponibilità attuale')}
         value={euro(liquidity(data, scope))}
-        hint="Saldo complessivo dei tuoi conti"
+        hint={tr('Saldo complessivo dei tuoi conti')}
         icon={<Wallet size={19} />}
         accent
       />
       <Metric
-        label="Entrate del periodo"
+        label={tr('Entrate del periodo')}
         value={euro(income)}
-        hint={`${transactions.filter((t) => t.direction === 'income').length} movimenti registrati`}
+        hint={tr('{count} movimenti registrati', {
+          count: transactions.filter((t) => t.direction === 'income').length,
+        })}
         icon={<ArrowDownLeft size={19} />}
       />
       <Metric
-        label="Uscite del periodo"
+        label={tr('Uscite del periodo')}
         value={euro(expense)}
-        hint={`${transactions.filter((t) => t.direction === 'expense').length} movimenti registrati`}
+        hint={tr('{count} movimenti registrati', {
+          count: transactions.filter((t) => t.direction === 'expense').length,
+        })}
         icon={<ArrowUpRight size={19} />}
       />
       <Metric
-        label="Saldo del periodo"
+        label={tr('Saldo del periodo')}
         value={(income > expense ? '+' : '') + euro(income - expense)}
-        hint="Entrate meno uscite"
+        hint={tr('Entrate meno uscite')}
         icon={<ArrowLeftRight size={19} />}
         footer={
           <span
@@ -564,8 +600,8 @@ function Stats({ scope, period }: { scope: FilterScope; period: Period }) {
           >
             <span className="tiny-dot" />
             {income - expense >= 0
-              ? 'Stai mantenendo l’equilibrio'
-              : 'Uscite superiori alle entrate'}
+              ? tr('Stai mantenendo l’equilibrio')
+              : tr('Uscite superiori alle entrate')}
           </span>
         }
       />
@@ -606,11 +642,12 @@ function Overview({
       {!hasData && (
         <div className="welcome-strip">
           <div>
-            <span className="eyebrow">SI PARTE DA QUI</span>
-            <h3>Il primo passo è conoscere il punto di partenza.</h3>
+            <span className="eyebrow">{tr('SI PARTE DA QUI')}</span>
+            <h3>{tr('Il primo passo è conoscere il punto di partenza.')}</h3>
             <p>
-              Aggiungi il tuo primo conto, oppure esplora l’app con i dati
-              dimostrativi dalle impostazioni.
+              {tr(
+                'Aggiungi il tuo primo conto, oppure esplora l’app con i dati dimostrativi dalle impostazioni.',
+              )}
             </p>
           </div>
           <button
@@ -618,24 +655,24 @@ function Overview({
             onClick={() => openForm({ kind: 'account' })}
           >
             <Plus size={16} />
-            Aggiungi un conto
+            {tr('Aggiungi un conto')}
           </button>
         </div>
       )}
       <div className="overview-chart-grid">
         <section className="panel liquidity-panel">
           <SectionHeading
-            title="La tua liquidità"
-            description="Il saldo dei tuoi conti negli ultimi sei mesi"
-            action="Esplora le analisi"
+            title={tr('La tua liquidità')}
+            description={tr('Il saldo dei tuoi conti negli ultimi sei mesi')}
+            action={tr('Esplora le analisi')}
             onAction={() => navigate('analytics')}
           />
           <div className="chart-legend">
             <span>
               <i />
-              Saldo effettivo
+              {tr('Saldo effettivo')}
             </span>
-            <span className="chart-period">Ultimi 6 mesi</span>
+            <span className="chart-period">{tr('Ultimi 6 mesi')}</span>
           </div>
           <LineChart points={history(data, scope)} />
         </section>
@@ -643,23 +680,21 @@ function Overview({
           <span className="forecast-icon">
             <TrendingUp size={23} strokeWidth={1.5} />
           </span>
-          <p className="eyebrow">UNO SGUARDO AVANTI</p>
+          <p className="eyebrow">{tr('UNO SGUARDO AVANTI')}</p>
           <h2>
-            Il futuro,
-            <br />
-            un po’ più chiaro.
+            {tr('Il futuro,')} <br />
+            {tr('un po’ più chiaro.')}
           </h2>
           <p>
-            La tua disponibilità stimata
-            <br />
-            tra sei mesi
+            {tr('La tua disponibilità stimata')} <br />
+            {tr('tra sei mesi')}
           </p>
           <strong>{euro(prediction[5].value)}</strong>
           <span className="forecast-teaser-hint">
-            In base ai movimenti previsti
+            {tr('In base ai movimenti previsti')}
           </span>
           <button className="text-button" onClick={() => navigate('forecast')}>
-            Vai alle previsioni
+            {tr('Vai alle previsioni')}
             <ArrowRight size={17} />
           </button>
           <div className="teaser-decoration" aria-hidden="true">
@@ -678,9 +713,11 @@ function Overview({
       <div className="overview-middle">
         <section className="panel">
           <SectionHeading
-            title="Progetti in movimento"
-            description={`${projects.length} progetti attivi, un passo alla volta`}
-            action="Tutti i progetti"
+            title={tr('Progetti in movimento')}
+            description={tr('{count} progetti attivi, un passo alla volta', {
+              count: projects.length,
+            })}
+            action={tr('Tutti i progetti')}
             onAction={() => navigate('projects')}
           />
           {projects.length ? (
@@ -695,18 +732,20 @@ function Overview({
             </div>
           ) : (
             <Empty
-              title="Spazio alle tue idee"
-              description="Raccogli attività, costi e ricavi in un progetto."
-              action="Crea un progetto"
+              title={tr('Spazio alle tue idee')}
+              description={tr(
+                'Raccogli attività, costi e ricavi in un progetto.',
+              )}
+              action={tr('Crea un progetto')}
               onAction={() => openForm({ kind: 'project' })}
             />
           )}
         </section>
         <section className="panel">
           <SectionHeading
-            title="Le prossime cose da fare"
-            description="Un po’ di ordine nelle tue giornate"
-            action="Tutte le attività"
+            title={tr('Le prossime cose da fare')}
+            description={tr('Un po’ di ordine nelle tue giornate')}
+            action={tr('Tutte le attività')}
             onAction={() => navigate('tasks')}
           />
           {tasks.length ? (
@@ -722,9 +761,11 @@ function Overview({
             </div>
           ) : (
             <Empty
-              title="Hai spazio per concentrarti"
-              description="Nessuna attività in scadenza. Aggiungine una quando vuoi."
-              action="Aggiungi attività"
+              title={tr('Hai spazio per concentrarti')}
+              description={tr(
+                'Nessuna attività in scadenza. Aggiungine una quando vuoi.',
+              )}
+              action={tr('Aggiungi attività')}
               onAction={() => openForm({ kind: 'task' })}
             />
           )}
@@ -732,9 +773,9 @@ function Overview({
       </div>
       <section className="panel recent-panel">
         <SectionHeading
-          title="Ultimi movimenti"
-          description="Le tue entrate e uscite, in ordine"
-          action="Tutti i movimenti"
+          title={tr('Ultimi movimenti')}
+          description={tr('Le tue entrate e uscite, in ordine')}
+          action={tr('Tutti i movimenti')}
           onAction={() => navigate('finance')}
         />
         <TransactionTable
@@ -764,18 +805,21 @@ function ProjectRow({
       <div className="project-row-main">
         <div>
           <strong>{p.name}</strong>
-          <span className="badge green">{statusLabels[p.status]}</span>
+          <span className="badge green">{statusLabels()[p.status]}</span>
         </div>
         <div className="progress-line">
           <span style={{ width: `${progress}%`, background: p.color }} />
         </div>
         <small>
-          {complete} di {tasks.length} attività completate
+          {tr('{done} di {total} attività completate', {
+            done: complete,
+            total: tasks.length,
+          })}
         </small>
       </div>
       <div className="project-row-result">
         <strong>{euro(projectResult(data, p.id))}</strong>
-        <small>risultato registrato</small>
+        <small>{tr('risultato registrato')}</small>
       </div>
       <ChevronRight size={16} />
     </button>
@@ -797,17 +841,19 @@ function Projects({
     (p) =>
       (scope === 'all' || p.scope === scope) &&
       (filter === 'all' ? p.status !== 'archiviato' : p.status === filter) &&
-      p.name.toLocaleLowerCase('it').includes(search.toLocaleLowerCase('it')),
+      p.name
+        .toLocaleLowerCase(locale())
+        .includes(search.toLocaleLowerCase(locale())),
   );
   return (
     <>
       <div className="list-toolbar">
         <div className="tabs small-tabs">
           {[
-            ['all', 'Tutti'],
-            ['attivo', 'Attivi'],
-            ['completato', 'Completati'],
-            ['archiviato', 'Archiviati'],
+            ['all', tr('Tutti')],
+            ['attivo', tr('Attivi')],
+            ['completato', tr('Completati')],
+            ['archiviato', tr('Archiviati')],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -821,7 +867,7 @@ function Projects({
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Cerca un progetto…"
+          placeholder={tr('Cerca un progetto…')}
         />
       </div>
       {projects.length ? (
@@ -839,11 +885,11 @@ function Projects({
                   <span
                     className={`badge ${p.status === 'attivo' ? 'green' : ''}`}
                   >
-                    {statusLabels[p.status]}
+                    {statusLabels()[p.status]}
                   </span>
                   <button
                     className="icon-button"
-                    aria-label={`Modifica ${p.name}`}
+                    aria-label={tr('Modifica {name}', { name: p.name })}
                     onClick={() => openForm({ kind: 'project', entity: p })}
                   >
                     <MoreHorizontal size={20} />
@@ -855,15 +901,17 @@ function Projects({
                 >
                   <h2>{p.name}</h2>
                   <p>
-                    {p.description || 'Il tuo prossimo passo prende forma qui.'}
+                    {p.description ||
+                      tr('Il tuo prossimo passo prende forma qui.')}
                   </p>
                 </button>
                 <div className="project-finance">
                   <span>
-                    Risultato registrato<strong>{euro(result)}</strong>
+                    {tr('Risultato registrato')}
+                    <strong>{euro(result)}</strong>
                   </span>
                   <span>
-                    Obiettivo
+                    {tr('Obiettivo')}
                     <strong>{p.targetCents ? euro(p.targetCents) : '—'}</strong>
                   </span>
                 </div>
@@ -878,11 +926,14 @@ function Projects({
                 <div className="project-card-bottom">
                   <span>
                     <CheckSquare2 size={14} />
-                    {done}/{tasks.length} attività
+                    {tr('{done}/{total} attività', {
+                      done,
+                      total: tasks.length,
+                    })}
                   </span>
                   <span>
                     <CalendarDays size={14} />
-                    {p.endDate ? dateLabel(p.endDate) : 'Senza scadenza'}
+                    {p.endDate ? dateLabel(p.endDate) : tr('Senza scadenza')}
                   </span>
                 </div>
               </article>
@@ -895,16 +946,18 @@ function Projects({
             <span>
               <Plus size={25} />
             </span>
-            <strong>Una nuova idea?</strong>
-            <p>Crea il tuo prossimo progetto</p>
+            <strong>{tr('Una nuova idea?')}</strong>
+            <p>{tr('Crea il tuo prossimo progetto')}</p>
           </button>
         </div>
       ) : (
         <section className="panel">
           <Empty
-            title="Il prossimo progetto inizia qui"
-            description="Dai un nome a un’idea e trasformala in passi concreti."
-            action="Crea progetto"
+            title={tr('Il prossimo progetto inizia qui')}
+            description={tr(
+              'Dai un nome a un’idea e trasformala in passi concreti.',
+            )}
+            action={tr('Crea progetto')}
             onAction={() => openForm({ kind: 'project' })}
           />
         </section>
@@ -930,9 +983,9 @@ function ProjectDetail({
     <Dialog title={project.name} onClose={onClose} wide>
       <div className="project-detail">
         <div className="detail-intro">
-          <span className="badge green">{statusLabels[project.status]}</span>
+          <span className="badge green">{statusLabels()[project.status]}</span>
           <span>
-            {project.scope === 'lavoro' ? 'Lavoro' : 'Personale'} ·{' '}
+            {project.scope === 'lavoro' ? tr('Lavoro') : tr('Personale')} ·{' '}
             {dateLabel(project.startDate)}
             {project.endDate && ` → ${dateLabel(project.endDate)}`}
           </span>
@@ -941,41 +994,42 @@ function ProjectDetail({
             onClick={() => openForm({ kind: 'project', entity: project })}
           >
             <Pencil size={15} />
-            Modifica
+            {tr('Modifica')}
           </button>
         </div>
         <p>{project.description}</p>
         <div className="detail-metrics">
           <div>
-            <small>Incassi registrati</small>
+            <small>{tr('Incassi registrati')}</small>
             <strong>{euro(total(transactions, 'income'))}</strong>
           </div>
           <div>
-            <small>Spese registrate</small>
+            <small>{tr('Spese registrate')}</small>
             <strong>{euro(total(transactions, 'expense'))}</strong>
           </div>
           <div>
-            <small>Risultato registrato</small>
+            <small>{tr('Risultato registrato')}</small>
             <strong>{euro(projectResult(data, project.id))}</strong>
           </div>
           <div>
-            <small>Obiettivo economico</small>
+            <small>{tr('Obiettivo economico')}</small>
             <strong>{euro(project.targetCents)}</strong>
           </div>
         </div>
         <p className="form-hint">
-          Il risultato è la differenza tra incassi e spese registrati. Non è un
-          calcolo fiscale.
+          {tr(
+            'Il risultato è la differenza tra incassi e spese registrati. Non è un calcolo fiscale.',
+          )}
         </p>
         {project.notes && (
           <div className="notes-block">
-            <h3>Note</h3>
+            <h3>{tr('Note')}</h3>
             <p>{project.notes}</p>
           </div>
         )}
         <SectionHeading
-          title="Attività del progetto"
-          action="Aggiungi attività"
+          title={tr('Attività del progetto')}
+          action={tr('Aggiungi attività')}
           onAction={() =>
             openForm({
               kind: 'task',
@@ -992,11 +1046,11 @@ function ProjectDetail({
             />
           ))
         ) : (
-          <p className="muted">Non hai ancora aggiunto attività.</p>
+          <p className="muted">{tr('Non hai ancora aggiunto attività.')}</p>
         )}
         <SectionHeading
-          title="Movimenti collegati"
-          action="Aggiungi movimento"
+          title={tr('Movimenti collegati')}
+          action={tr('Aggiungi movimento')}
           onAction={() =>
             openForm({
               kind: 'transaction',
@@ -1040,7 +1094,9 @@ function Finance({
         (accountFilter === 'all' ||
           t.accountId === accountFilter ||
           t.toAccountId === accountFilter) &&
-        t.name.toLocaleLowerCase('it').includes(search.toLocaleLowerCase('it')),
+        t.name
+          .toLocaleLowerCase(locale())
+          .includes(search.toLocaleLowerCase(locale())),
     ),
     accounts = list(data, 'account').filter(
       (a) => scope === 'all' || a.scope === scope,
@@ -1060,13 +1116,16 @@ function Finance({
               </span>
               <span>
                 {a.name}
-                <small>{a.scope === 'lavoro' ? 'Lavoro' : 'Personale'}</small>
+                <small>
+                  {a.scope === 'lavoro' ? tr('Lavoro') : tr('Personale')}
+                </small>
               </span>
               <MoreHorizontal size={18} />
             </div>
             <strong>{euro(accountBalance(data, a.id))}</strong>
             <small>
-              Saldo iniziale {euro(a.openingCents)} · {dateLabel(a.openingDate)}
+              {tr('Saldo iniziale')} {euro(a.openingCents)} ·{' '}
+              {dateLabel(a.openingDate)}
             </small>
           </button>
         ))}
@@ -1075,21 +1134,23 @@ function Finance({
           onClick={() => openForm({ kind: 'account' })}
         >
           <Plus size={20} />
-          Aggiungi un conto
+          {tr('Aggiungi un conto')}
         </button>
       </div>
       <section className="panel">
         <SectionHeading
-          title="I tuoi movimenti"
-          description="Gli importi dei trasferimenti non entrano nei ricavi e nei costi."
+          title={tr('I tuoi movimenti')}
+          description={tr(
+            'Gli importi dei trasferimenti non entrano nei ricavi e nei costi.',
+          )}
         />
         <div className="finance-actions">
           <div className="tabs small-tabs">
             {[
-              ['all', 'Tutti'],
-              ['income', 'Entrate'],
-              ['expense', 'Uscite'],
-              ['transfer', 'Trasferimenti'],
+              ['all', tr('Tutti')],
+              ['income', tr('Entrate')],
+              ['expense', tr('Uscite')],
+              ['transfer', tr('Trasferimenti')],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -1103,14 +1164,14 @@ function Finance({
           <div className="toolbar-actions">
             <button className="button secondary" onClick={onImport}>
               <Download size={15} />
-              Importa CSV
+              {tr('Importa CSV')}
             </button>
             <button
               className="button primary"
               onClick={() => openForm({ kind: 'transaction' })}
             >
               <Plus size={16} />
-              Movimento
+              {tr('Movimento')}
             </button>
           </div>
         </div>
@@ -1118,21 +1179,21 @@ function Finance({
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Cerca un movimento…"
+            placeholder={tr('Cerca un movimento…')}
           />
           <select
-            aria-label="Filtra per conto"
+            aria-label={tr('Filtra per conto')}
             value={accountFilter}
             onChange={(e) => setAccountFilter(e.target.value)}
           >
-            <option value="all">Tutti i conti</option>
+            <option value="all">{tr('Tutti i conti')}</option>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
             ))}
           </select>
-          <span>{transactions.length} movimenti</span>
+          <span>{tr('{count} movimenti', { count: transactions.length })}</span>
         </div>
         <TransactionTable
           transactions={transactions}
@@ -1165,7 +1226,7 @@ function SearchInput({
         <button
           type="button"
           className="icon-button"
-          aria-label="Svuota ricerca"
+          aria-label={tr('Svuota ricerca')}
           onClick={() => onChange('')}
         >
           <X size={14} />
@@ -1189,10 +1250,13 @@ function TaskRow({
     <div className={`task-row ${t.status === 'done' ? 'done' : ''}`}>
       <button
         className={`task-check ${t.status === 'done' ? 'checked' : ''}`}
-        aria-label={`${t.status === 'done' ? 'Riapri' : 'Completa'} ${t.name}`}
+        aria-label={tr(
+          t.status === 'done' ? 'Riapri {name}' : 'Completa {name}',
+          { name: t.name },
+        )}
         onClick={() =>
           save({ ...t, status: t.status === 'done' ? 'todo' : 'done' }).catch(
-            (e) => toast(e.message),
+            (e) => toast(toMessage(e)),
           )
         }
       >
@@ -1201,37 +1265,42 @@ function TaskRow({
       <button className="task-main" onClick={onEdit}>
         <strong>{t.name}</strong>
         <small>
-          {entityName(data, t.projectId) || 'Attività generale'}
+          {entityName(data, t.projectId) || tr('Attività generale')}
           {t.subtasks.length > 0 &&
-            ` · ${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length} passi`}
+            tr(' · {done}/{total} passi', {
+              done: t.subtasks.filter((s) => s.done).length,
+              total: t.subtasks.length,
+            })}
         </small>
       </button>
       {!compact && (
         <select
           className="task-status-select"
-          aria-label={`Stato di ${t.name}`}
+          aria-label={tr('Stato di {name}', { name: t.name })}
           value={t.status}
           onChange={(e) =>
             save({ ...t, status: e.target.value as Task['status'] }).catch(
-              (e) => toast(e.message),
+              (e) => toast(toMessage(e)),
             )
           }
         >
-          <option value="todo">Da fare</option>
-          <option value="doing">In corso</option>
-          <option value="done">Fatto</option>
+          <option value="todo">{tr('Da fare')}</option>
+          <option value="doing">{tr('In corso')}</option>
+          <option value="done">{tr('Fatto')}</option>
         </select>
       )}
       <div className="task-meta">
         <span
           className={`priority-dot ${t.priority}`}
-          title={`Priorità ${t.priority}`}
+          title={tr('Priorità {priority}', {
+            priority: priorityLabel(t.priority),
+          })}
         />
         <span className={`task-date ${late ? 'late' : ''}`}>
           {t.due === today()
-            ? 'Oggi'
+            ? tr('Oggi')
             : t.due === shiftDate(today(), 1)
-              ? 'Domani'
+              ? tr('Domani')
               : dateLabel(t.due)}
         </span>
       </div>
@@ -1256,22 +1325,24 @@ function Tasks({
         (filter === 'all' || filter === 'done'
           ? filter === 'all' || t.status === 'done'
           : t.status !== 'done') &&
-        t.name.toLocaleLowerCase('it').includes(search.toLocaleLowerCase('it')),
+        t.name
+          .toLocaleLowerCase(locale())
+          .includes(search.toLocaleLowerCase(locale())),
     )
     .sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
   const changeStatus = (id: string, status: Task['status']) => {
     const t = data.entities[id];
     if (t?.type === 'task')
-      save({ ...t, status }).catch((e) => toast(e.message));
+      save({ ...t, status }).catch((e) => toast(toMessage(e)));
   };
   return (
     <>
       <div className="list-toolbar">
         <div className="tabs small-tabs">
           {[
-            ['open', 'Da completare'],
-            ['done', 'Completate'],
-            ['all', 'Tutte'],
+            ['open', tr('Da completare')],
+            ['done', tr('Completate')],
+            ['all', tr('Tutte')],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -1286,11 +1357,11 @@ function Tasks({
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Cerca un’attività…"
+            placeholder={tr('Cerca un’attività…')}
           />
           <div className="view-switch">
             <button
-              aria-label="Vista lista"
+              aria-label={tr('Vista lista')}
               aria-pressed={view === 'list'}
               className={view === 'list' ? 'selected' : ''}
               onClick={() => setView('list')}
@@ -1298,7 +1369,7 @@ function Tasks({
               <List size={18} />
             </button>
             <button
-              aria-label="Vista bacheca"
+              aria-label={tr('Vista bacheca')}
               aria-pressed={view === 'board'}
               className={view === 'board' ? 'selected' : ''}
               onClick={() => setView('board')}
@@ -1311,8 +1382,8 @@ function Tasks({
       {view === 'list' ? (
         <section className="panel">
           <SectionHeading
-            title={`${tasks.length} attività`}
-            action="Aggiungi attività"
+            title={tr('{count} attività', { count: tasks.length })}
+            action={tr('Aggiungi attività')}
             onAction={() => openForm({ kind: 'task' })}
           />
           {tasks.length ? (
@@ -1325,9 +1396,9 @@ function Tasks({
             ))
           ) : (
             <Empty
-              title="Un po’ di spazio libero"
-              description="Non ci sono attività in questa vista."
-              action="Aggiungi attività"
+              title={tr('Un po’ di spazio libero')}
+              description={tr('Non ci sono attività in questa vista.')}
+              action={tr('Aggiungi attività')}
               onAction={() => openForm({ kind: 'task' })}
             />
           )}
@@ -1336,9 +1407,9 @@ function Tasks({
         <div className="kanban">
           {(
             [
-              ['todo', 'Da fare'],
-              ['doing', 'In corso'],
-              ['done', 'Fatto'],
+              ['todo', tr('Da fare')],
+              ['doing', tr('In corso')],
+              ['done', tr('Fatto')],
             ] as const
           ).map(([status, label]) => (
             <section
@@ -1353,10 +1424,12 @@ function Tasks({
               <div className="kanban-heading">
                 <span className="tiny-dot" />
                 <h2>{label}</h2>
-                <span>{tasks.filter((t) => t.status === status).length}</span>
+                <span>
+                  {numberLabel(tasks.filter((t) => t.status === status).length)}
+                </span>
                 <button
                   className="icon-button"
-                  aria-label={`Aggiungi in ${label}`}
+                  aria-label={tr('Aggiungi in {status}', { status: label })}
                   onClick={() =>
                     openForm({ kind: 'task', defaults: { status } })
                   }
@@ -1377,11 +1450,11 @@ function Tasks({
                   >
                     <div>
                       <span className={`badge priority-${t.priority}`}>
-                        {t.priority}
+                        {priorityLabel(t.priority)}
                       </span>
                       <button
                         className="icon-button"
-                        aria-label={`Modifica ${t.name}`}
+                        aria-label={tr('Modifica {name}', { name: t.name })}
                         onClick={() => openForm({ kind: 'task', entity: t })}
                       >
                         <MoreHorizontal size={17} />
@@ -1394,7 +1467,7 @@ function Tasks({
                       {t.name}
                     </button>
                     <small>
-                      {entityName(data, t.projectId) || 'Attività generale'}
+                      {entityName(data, t.projectId) || tr('Attività generale')}
                     </small>
                     {t.subtasks.map((s) => (
                       <label className="subtask" key={s.id}>
@@ -1409,7 +1482,7 @@ function Tasks({
                                   ? { ...sub, done: !sub.done }
                                   : sub,
                               ),
-                            }).catch((e) => toast(e.message))
+                            }).catch((e) => toast(toMessage(e)))
                           }
                         />
                         {s.name}
@@ -1427,15 +1500,15 @@ function Tasks({
                         {dateLabel(t.due)}
                       </span>
                       <select
-                        aria-label={`Stato di ${t.name}`}
+                        aria-label={tr('Stato di {name}', { name: t.name })}
                         value={t.status}
                         onChange={(e) =>
                           changeStatus(t.id, e.target.value as Task['status'])
                         }
                       >
-                        <option value="todo">Da fare</option>
-                        <option value="doing">In corso</option>
-                        <option value="done">Fatto</option>
+                        <option value="todo">{tr('Da fare')}</option>
+                        <option value="doing">{tr('In corso')}</option>
+                        <option value="done">{tr('Fatto')}</option>
                       </select>
                     </div>
                   </article>
@@ -1445,7 +1518,7 @@ function Tasks({
                 onClick={() => openForm({ kind: 'task', defaults: { status } })}
               >
                 <Plus size={16} />
-                Aggiungi attività
+                {tr('Aggiungi attività')}
               </button>
             </section>
           ))}
@@ -1482,11 +1555,11 @@ function Forecasts({
         <label className="scenario-picker">
           <SlidersHorizontal size={17} />
           <select
-            aria-label="Scenario"
+            aria-label={tr('Scenario')}
             value={scenario?.id ?? ''}
             onChange={(e) => setScenarioId(e.target.value)}
           >
-            <option value="">Scenario di base</option>
+            <option value="">{tr('Scenario di base')}</option>
             {scenarios.map((s) => (
               <option value={s.id} key={s.id}>
                 {s.name}
@@ -1501,7 +1574,7 @@ function Forecasts({
               onClick={() => openForm({ kind: 'scenario', entity: scenario })}
             >
               <Pencil size={15} />
-              Modifica nome
+              {tr('Modifica nome')}
             </button>
           )}
           <button
@@ -1509,29 +1582,36 @@ function Forecasts({
             onClick={() => openForm({ kind: 'scenario' })}
           >
             <Plus size={15} />
-            Crea scenario
+            {tr('Crea scenario')}
           </button>
           <button
             className="button primary"
             onClick={() => openForm({ kind: 'forecast' })}
           >
             <Plus size={16} />
-            Previsione
+            {tr('Previsione')}
           </button>
         </div>
       </div>
       <div className="forecast-summary">
         <div>
-          <span className="eyebrow">DISPONIBILITÀ STIMATA A SEI MESI</span>
+          <span className="eyebrow">
+            {tr('DISPONIBILITÀ STIMATA A SEI MESI')}
+          </span>
           <strong>{euro(series[5].value)}</strong>
           <p>
             {scenario
-              ? `Scenario «${scenario.name}». Le modifiche non toccano i dati reali.`
-              : 'Saldo attuale più entrate e uscite future non ancora registrate.'}
+              ? tr(
+                  'Scenario «{name}». Le modifiche non toccano i dati reali.',
+                  { name: scenario.name },
+                )
+              : tr(
+                  'Saldo attuale più entrate e uscite future non ancora registrate.',
+                )}
           </p>
         </div>
         <div>
-          <span>Variazione prevista</span>
+          <span>{tr('Variazione prevista')}</span>
           <strong
             className={
               series[5].value - liquidity(data, scope) < 0
@@ -1546,18 +1626,20 @@ function Forecasts({
       </div>
       <section className="panel">
         <SectionHeading
-          title="La strada davanti a te"
-          description="Le previsioni sono stime basate sui movimenti pianificati."
+          title={tr('La strada davanti a te')}
+          description={tr(
+            'Le previsioni sono stime basate sui movimenti pianificati.',
+          )}
         />
         <div className="chart-legend">
           <span>
             <i />
-            {scenario?.name ?? 'Scenario di base'}
+            {scenario?.name ?? tr('Scenario di base')}
           </span>
           {scenario && (
             <span>
               <i className="gray" />
-              Scenario di base
+              {tr('Scenario di base')}
             </span>
           )}
         </div>
@@ -1573,7 +1655,7 @@ function Forecasts({
           <table className="forecast-table">
             <thead>
               <tr>
-                <th>Mese</th>
+                <th>{tr('Mese')}</th>
                 {series.map((p) => (
                   <th className="number" key={p.label}>
                     {p.label}
@@ -1583,7 +1665,7 @@ function Forecasts({
             </thead>
             <tbody>
               <tr>
-                <td>Entrate previste</td>
+                <td>{tr('Entrate previste')}</td>
                 {series.map((p) => (
                   <td className="number positive" key={p.label}>
                     {euro(p.income)}
@@ -1591,7 +1673,7 @@ function Forecasts({
                 ))}
               </tr>
               <tr>
-                <td>Uscite previste</td>
+                <td>{tr('Uscite previste')}</td>
                 {series.map((p) => (
                   <td className="number" key={p.label}>
                     {euro(p.expense)}
@@ -1599,7 +1681,7 @@ function Forecasts({
                 ))}
               </tr>
               <tr>
-                <th>Saldo stimato</th>
+                <th>{tr('Saldo stimato')}</th>
                 {series.map((p) => (
                   <th
                     className={`number ${p.value < 0 ? 'negative' : ''}`}
@@ -1617,18 +1699,24 @@ function Forecasts({
         <div className="notice amber">
           <CalendarDays size={18} />
           <span>
-            {overdue.length} previsioni sono scadute. Registrale o spostale per
-            aggiornarle; sono escluse dal saldo futuro.
+            {tr(
+              '{count} previsioni sono scadute. Registrale o spostale per aggiornarle; sono escluse dal saldo futuro.',
+              { count: overdue.length },
+            )}
           </span>
         </div>
       )}
       <section className="panel">
         <SectionHeading
-          title="Movimenti pianificati"
+          title={tr('Movimenti pianificati')}
           description={
             scenario
-              ? 'Seleziona un movimento per cambiare data, importo o escluderlo da questo scenario.'
-              : 'Registra un movimento effettivo per toglierlo automaticamente dalla previsione.'
+              ? tr(
+                  'Seleziona un movimento per cambiare data, importo o escluderlo da questo scenario.',
+                )
+              : tr(
+                  'Registra un movimento effettivo per toglierlo automaticamente dalla previsione.',
+                )
           }
         />
         {upcoming.length ? (
@@ -1636,11 +1724,11 @@ function Forecasts({
             <table>
               <thead>
                 <tr>
-                  <th>Movimento</th>
-                  <th>Data prevista</th>
-                  <th>Ripetizione</th>
-                  <th className="number">Importo</th>
-                  <th>Azioni</th>
+                  <th>{tr('Movimento')}</th>
+                  <th>{tr('Data prevista')}</th>
+                  <th>{tr('Ripetizione')}</th>
+                  <th className="number">{tr('Importo')}</th>
+                  <th>{tr('Azioni')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1678,10 +1766,10 @@ function Forecasts({
                     <td className="muted">
                       {
                         {
-                          none: 'Una volta',
-                          weekly: 'Settimanale',
-                          monthly: 'Mensile',
-                          yearly: 'Annuale',
+                          none: tr('Una volta'),
+                          weekly: tr('Settimanale'),
+                          monthly: tr('Mensile'),
+                          yearly: tr('Annuale'),
                         }[o.forecast.recurrence]
                       }
                     </td>
@@ -1697,7 +1785,7 @@ function Forecasts({
                           className="button small secondary"
                           onClick={() => setAdjustment(o)}
                         >
-                          Varia
+                          {tr('Varia')}
                         </button>
                       ) : (
                         <button
@@ -1719,7 +1807,7 @@ function Forecasts({
                             })
                           }
                         >
-                          Registra
+                          {tr('Registra')}
                         </button>
                       )}
                     </td>
@@ -1729,16 +1817,19 @@ function Forecasts({
             </table>
             {upcoming.length > 150 && (
               <p className="form-hint">
-                Mostrate le prime 150 occorrenze. Le altre sono incluse nei
-                calcoli.
+                {tr(
+                  'Mostrate le prime 150 occorrenze. Le altre sono incluse nei calcoli.',
+                )}
               </p>
             )}
           </div>
         ) : (
           <Empty
-            title="Disegna i prossimi mesi"
-            description="Aggiungi entrate e spese attese, anche ricorrenti."
-            action="Aggiungi previsione"
+            title={tr('Disegna i prossimi mesi')}
+            description={tr(
+              'Aggiungi entrate e spese attese, anche ricorrenti.',
+            )}
+            action={tr('Aggiungi previsione')}
             onAction={() => openForm({ kind: 'forecast' })}
           />
         )}
@@ -1746,8 +1837,10 @@ function Forecasts({
       {forecasts.length > 0 && (
         <section className="panel">
           <SectionHeading
-            title="Regole delle previsioni"
-            description="Gestisci anche le ricorrenze terminate o già registrate."
+            title={tr('Regole delle previsioni')}
+            description={tr(
+              'Gestisci anche le ricorrenze terminate o già registrate.',
+            )}
           />
           <div className="rules-list">
             {forecasts
@@ -1761,8 +1854,9 @@ function Forecasts({
                   <span>
                     {f.name}
                     <small>
-                      Dal {dateLabel(f.date)}
-                      {f.endDate && ` al ${dateLabel(f.endDate)}`}
+                      {tr('Dal {date}', { date: dateLabel(f.date) })}
+                      {f.endDate &&
+                        tr(' al {date}', { date: dateLabel(f.endDate) })}
                     </small>
                   </span>
                   <strong>{euro(f.amountCents)}</strong>
@@ -1790,8 +1884,10 @@ function ScenarioChanges({ scenario }: { scenario: Scenario }) {
   return (
     <section className="panel">
       <SectionHeading
-        title="Variazioni dello scenario"
-        description="Ripristina una variazione per tornare al movimento di base."
+        title={tr('Variazioni dello scenario')}
+        description={tr(
+          'Ripristina una variazione per tornare al movimento di base.',
+        )}
       />
       <div className="rules-list">
         {Object.entries(scenario.adjustments).map(([key, a]) => (
@@ -1808,8 +1904,8 @@ function ScenarioChanges({ scenario }: { scenario: Scenario }) {
               )}
               <small>
                 {a.excluded
-                  ? 'Escluso'
-                  : `${a.date ? `Nuova data: ${dateLabel(a.date)}` : ''}${a.amountCents ? ` · ${euro(a.amountCents)}` : ''}`}
+                  ? tr('Escluso')
+                  : `${a.date ? tr('Nuova data: {date}', { date: dateLabel(a.date) }) : ''}${a.amountCents ? ` · ${euro(a.amountCents)}` : ''}`}
               </small>
             </span>
             <button
@@ -1818,11 +1914,11 @@ function ScenarioChanges({ scenario }: { scenario: Scenario }) {
                 const adjustments = { ...scenario.adjustments };
                 delete adjustments[key];
                 save({ ...scenario, adjustments }).catch((e) =>
-                  toast(e.message),
+                  toast(toMessage(e)),
                 );
               }}
             >
-              Ripristina
+              {tr('Ripristina')}
             </button>
           </div>
         ))}
@@ -1840,9 +1936,9 @@ function AdjustmentForm({
   onClose: () => void;
 }) {
   const { save } = useApp();
-  const [error, setError] = useState('');
+  const [error, setError] = useState<Message>('');
   return (
-    <Dialog title="Varia questa previsione" onClose={onClose}>
+    <Dialog title={tr('Varia questa previsione')} onClose={onClose}>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -1861,40 +1957,43 @@ function AdjustmentForm({
             });
             onClose();
           } catch (err) {
-            setError((err as Error).message);
+            setError(toMessage(err));
           }
         }}
       >
         <p className="muted">
-          {o.forecast.name} · Solo nello scenario «{scenario.name}»
+          {tr('{name} · Solo nello scenario «{scenario}»', {
+            name: o.forecast.name,
+            scenario: scenario.name,
+          })}
         </p>
         <div className="form-grid">
-          <Field label="Nuova data">
+          <Field label={tr('Nuova data')}>
             <input type="date" name="date" required defaultValue={o.date} />
           </Field>
-          <Field label="Nuovo importo (€)">
-            <input
+          <Field label={tr('Nuovo importo (€)')}>
+            <MoneyInput
               name="amount"
               required
               inputMode="decimal"
-              defaultValue={moneyInput(o.amountCents)}
+              defaultCents={o.amountCents}
             />
           </Field>
           <label className="checkbox-label full">
             <input type="checkbox" name="excluded" />
-            Escludi questo movimento dallo scenario
+            {tr('Escludi questo movimento dallo scenario')}
           </label>
         </div>
         {error && (
           <p className="inline-error" role="alert">
-            {error}
+            {messageText(error)}
           </p>
         )}
         <div className="dialog-actions">
           <button type="button" className="button secondary" onClick={onClose}>
-            Annulla
+            {tr('Annulla')}
           </button>
-          <button className="button primary">Salva variazione</button>
+          <button className="button primary">{tr('Salva variazione')}</button>
         </div>
       </form>
     </Dialog>
@@ -1917,7 +2016,7 @@ function Analytics({
     ...list(data, 'category'),
     {
       id: '',
-      name: 'Senza categoria',
+      name: tr('Senza categoria'),
       color: 'var(--chart-category-fallback)',
     },
   ]
@@ -1974,25 +2073,27 @@ function Analytics({
       <div className="analytics-grid">
         <section className="panel">
           <SectionHeading
-            title="Entrate e uscite"
-            description="Distribuzione negli ultimi sei mesi, nel periodo selezionato"
+            title={tr('Entrate e uscite')}
+            description={tr(
+              'Distribuzione negli ultimi sei mesi, nel periodo selezionato',
+            )}
           />
           <div className="chart-legend">
             <span>
               <i />
-              Entrate
+              {tr('Entrate')}
             </span>
             <span>
               <i className="sand" />
-              Uscite
+              {tr('Uscite')}
             </span>
           </div>
           <BarChart points={points} />
         </section>
         <section className="panel">
           <SectionHeading
-            title="Dove vanno le tue risorse"
-            description="Spese per categoria nel periodo selezionato"
+            title={tr('Dove vanno le tue risorse')}
+            description={tr('Spese per categoria nel periodo selezionato')}
           />
           {categories.length ? (
             <>
@@ -2005,7 +2106,7 @@ function Analytics({
                 style={{ background: `conic-gradient(${gradient})` }}
               >
                 <div>
-                  <small>Uscite totali</small>
+                  <small>{tr('Uscite totali')}</small>
                   <strong>{compactEuro(expense)}</strong>
                 </div>
               </div>
@@ -2015,41 +2116,49 @@ function Analytics({
                     <i style={{ background: c.color }} />
                     <span>{c.name}</span>
                     <strong>{euro(c.value)}</strong>
-                    <small>{Math.round((c.value / expense) * 100)}%</small>
+                    <small>
+                      {numberLabel(Math.round((c.value / expense) * 100))}%
+                    </small>
                   </div>
                 ))}
               </div>
             </>
           ) : (
             <Empty
-              title="Ogni spesa racconta qualcosa"
-              description="Le spese registrate appariranno qui, divise per categoria."
+              title={tr('Ogni spesa racconta qualcosa')}
+              description={tr(
+                'Le spese registrate appariranno qui, divise per categoria.',
+              )}
             />
           )}
         </section>
       </div>
       <section className="panel">
         <SectionHeading
-          title="Liquidità nel tempo"
-          description="Saldi effettivi alla fine di ciascun mese, fino a oggi"
+          title={tr('Liquidità nel tempo')}
+          description={tr(
+            'Saldi effettivi alla fine di ciascun mese, fino a oggi',
+          )}
         />
         <LineChart points={history(data, scope)} height={245} />
       </section>
       <section className="panel">
         <SectionHeading
-          title="I risultati dei tuoi progetti"
-          description="Incassi meno spese registrati nel periodo selezionato; non rappresentano un risultato fiscale."
+          title={tr('I risultati dei tuoi progetti')}
+          description={tr(
+            'Incassi meno spese registrati nel periodo selezionato; non rappresentano un risultato fiscale.',
+          )}
         />
         {projects.length ? (
           <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th>Progetto</th>
-                  <th className="number">Incassi</th>
-                  <th className="number">Spese</th>
-                  <th className="number">Risultato registrato</th>
-                  <th className="number">Obiettivo</th>
+                  <th>{tr('Progetto')}</th>
+                  <th className="number">{tr('Incassi')}</th>
+                  <th className="number">{tr('Spese')}</th>
+                  <th className="number">{tr('Risultato registrato')}</th>
+                  <th className="number">{tr('Obiettivo')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2084,8 +2193,10 @@ function Analytics({
           </div>
         ) : (
           <Empty
-            title="Un obiettivo, numeri più chiari"
-            description="Crea un progetto e collega i suoi movimenti per seguirne i risultati."
+            title={tr('Un obiettivo, numeri più chiari')}
+            description={tr(
+              'Crea un progetto e collega i suoi movimenti per seguirne i risultati.',
+            )}
           />
         )}
       </section>

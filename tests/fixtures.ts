@@ -1,5 +1,5 @@
 import {
-  emptyData,
+  createInitialData,
   demoData,
   parseMoney,
   euro,
@@ -25,7 +25,7 @@ import {
 } from '../src/domain';
 const ts = '2026-01-01T00:00:00.000Z';
 export function fixture(): Data {
-  const data = emptyData();
+  const data = createInitialData();
   data.entities.a = {
     id: 'a',
     type: 'account',

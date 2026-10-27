@@ -1,9 +1,11 @@
 # Citazioni stoiche del giorno
 
-La raccolta in `src/quotes.ts` contiene 30 traduzioni italiane proprie di brevi
+La raccolta in `src/quotes.ts` contiene 30 citazioni con traduzioni italiane e inglesi proprie di brevi
 passi greci e latini di pubblico dominio, dieci per autore. Le frasi sono estratti
 del passo indicato, non traduzioni dell’intero capitolo. La punteggiatura è
-adattata alla lettura autonoma; non sono riprese traduzioni italiane moderne.
+adattata alla lettura autonoma; non sono riprese traduzioni moderne. Le versioni inglesi mantengono il contenuto
+degli estratti italiani; nomi degli autori e titoli delle opere seguono la lingua
+selezionata nelle impostazioni.
 Ogni voce conserva un identificatore, l’autore, il riferimento all’opera e il
 collegamento al testo originale. Il riferimento è disponibile anche passando
 il puntatore sul nome dell’autore nel riquadro.
@@ -83,7 +85,8 @@ ciclo precedente, vengono scambiate le prime due. Con almeno tre citazioni
 l’ultima rimane invariata: basta quindi ricostruire il ciclo precedente senza
 ricorsione. Questo garantisce assenza di ripetizioni consecutive anche ai
 confini dei cicli. L’ordine cambia tra cicli e non dipende da browser, dispositivo,
-storage o rete. Cambiare raccolta, ordine delle voci o algoritmo può cambiare
+storage, lingua o rete. La scelta avviene prima della localizzazione: le due lingue
+condividono gli stessi identificativi, fonti e ordine della raccolta. Cambiare raccolta, ordine delle voci o algoritmo può cambiare
 l’associazione tra date e citazioni: evitare aggiornamenti di questi elementi
 durante una giornata se si vuole preservare la citazione già mostrata.
 
@@ -103,3 +106,8 @@ entro un minuto dalla mezzanotte, la ripresa senza tick intermedi, gli eventi di
 riattivazione, la rimozione dei listener in StrictMode e l’assenza di richieste
 HTTP e scritture in localStorage. Il test di integrazione in `tests/ui.test.tsx`
 controlla il riquadro nella sidebar e l’apertura/chiusura del menu mobile.
+
+`tests/language.test.tsx` controlla che le due raccolte abbiano le stesse fonti e
+che una data selezioni lo stesso identificativo in entrambe le lingue. I test
+dell’interfaccia verificano il cambio del testo a parità di giorno, senza scrivere
+nei dati dell’utente.

@@ -1970,6 +1970,10 @@ tbody tr:hover {
   font-size: 12px;
   line-height: 1.7;
 }
+.language-options {
+  padding: 0 23px;
+  max-width: 550px;
+}
 .profile-form {
   display: flex;
   align-items: flex-end;
@@ -3489,7 +3493,8 @@ tbody tr:hover {
   .privacy-note {
     margin: 20px 18px 0;
   }
-  .profile-form {
+  .profile-form,
+  .language-options {
     padding: 0 18px;
   }
   .category-chips {

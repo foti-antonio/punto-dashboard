@@ -28,11 +28,11 @@ import { fixture, transaction, forecast } from './fixtures';
 const ts = '2026-01-01T00:00:00.000Z';
 describe('importi e saldi', () => {
   it('usa centesimi esatti e separatori italiani o inglesi', () => {
-    expect(parseMoney('1.234,56 €')).toBe(123456);
-    expect(parseMoney('-0,09')).toBe(-9);
+    expect(parseMoney('1.234,56 €', ',')).toBe(123456);
+    expect(parseMoney('-0,09', ',')).toBe(-9);
     expect(parseMoney('1,234.56', '.')).toBe(123456);
-    expect(parseMoney('0,10') + parseMoney('0,20')).toBe(30);
-    expect(euro(30)).toContain('0,30');
+    expect(parseMoney('0,10', ',') + parseMoney('0,20', ',')).toBe(30);
+    expect(euro(30)).toContain('0.30');
   });
   it.each([
     '1,005',
@@ -43,7 +43,7 @@ describe('importi e saldi', () => {
     '',
     '1.000.000.000.000,00',
   ])('rifiuta valori ambigui o fuori limite: %s', (input) =>
-    expect(() => parseMoney(input)).toThrow(),
+    expect(() => parseMoney(input, ',')).toThrow(),
   );
   it('conteggia i saldi iniziali dalla data del conto', () => {
     const d = fixture();
@@ -146,7 +146,7 @@ describe('ricorrenze, scenari e riconciliazione', () => {
     expect(occurrences(d, today(), today())).toHaveLength(0);
     expect(forecastSeries(d, 'all')[5].value).toBe(before[5].value);
     d.entities.dup = transaction({ id: 'dup', forecastKey: 'f@0' });
-    expect(() => validateData(d)).toThrow(/più di una/);
+    expect(() => validateData(d)).toThrow(/more than once/);
   });
   it('sposta incassi e cambia spese senza modificare la base', () => {
     const d = fixture();
@@ -256,7 +256,7 @@ describe('confronto a tre vie', () => {
     expect(result.conflicts.map((c) => c.id)).toContain('a');
     expect(() =>
       resolveMerge(result.data, result.conflicts, { a: 'local', t: 'remote' }),
-    ).toThrow(/conto eliminato/);
+    ).toThrow(/deleted account/);
     expect(() =>
       resolveMerge(result.data, result.conflicts, { a: 'remote', t: 'remote' }),
     ).not.toThrow();
