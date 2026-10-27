@@ -1,62 +1,91 @@
 # Punto
 
-Una dashboard personale per progetti, attività e risorse economiche, con inglese predefinito e italiano selezionabile. Applicazione statica React + TypeScript + Vite: nessun server applicativo, nessun servizio di analisi o collegamento bancario.
+**English** | [Italiano](README.it.md)
 
-## Avvio locale con Docker
+A personal dashboard for projects, tasks, and money. Built with React, TypeScript,
+and Vite, Punto runs in your browser without an application server, analytics,
+or bank connections. English is the default language; Italian is available in settings.
 
-Richiede Docker Engine e Docker Compose. Non serve installare Node.js o avviare npm sul computer: l’immagine compila l’app con Node 22 e distribuisce i soli file di produzione tramite Nginx.
+## Features
 
-Dalla directory del progetto, abilita Docker all’avvio del computer (una sola volta) e costruisci e avvia Punto:
+- Projects, tasks, subtasks, and analytics linked to income and expenses.
+- Accounts, transfers, recurring forecasts, and six-month scenarios.
+- CSV import with preview and duplicate detection; JSON backup and restore.
+- Browser-local data with optional synchronization to a private GitHub repository.
+- English and Italian, light/dark/system themes, responsive layout, and a daily Stoic quote.
+
+The demo names, balances, transactions, and the sample
+[`examples/movimenti.csv`](examples/movimenti.csv) are fictional examples.
+Punto does not provide tax accounting, automatic banking, AI, attachments,
+a calendar, or time tracking.
+
+## Run locally with Docker
+
+You need Git, Docker Engine or Docker Desktop, and Docker Compose. Node.js and
+npm are not needed on the host: the image builds with Node 22 and serves the
+production files through Nginx. With Docker running:
 
 ```bash
-sudo systemctl enable --now docker
-sudo docker compose up -d --build
+git clone https://github.com/foti-antonio/punto-dashboard.git
+cd punto-dashboard
+docker compose up -d --build
 ```
 
-Apri **http://localhost:5173**. La porta è pubblicata soltanto su `127.0.0.1`, quindi l’app è accessibile solo da questo PC. Libera la porta se è già occupata da Vite o da un altro processo. Nginx applica gli stessi header di sicurezza di `public/_headers`, riportati in `nginx.conf`.
+Open **http://localhost:5173**. Compose binds the port to `127.0.0.1`, so the app
+is accessible only from this computer. Stop Vite or another process if it already
+uses that port. Nginx applies the security headers in [`nginx.conf`](nginx.conf),
+matching [`public/_headers`](public/_headers).
 
-Con `restart: unless-stopped`, Punto riparte quando si avvia Docker, anche dopo un riavvio del computer. Un arresto manuale rimane valido anche dopo il riavvio; per riattivarlo usa `sudo docker compose start`. Non servono database o volumi Docker: i dati restano nel browser.
-
-Comandi da eseguire nella directory del progetto:
+Run these commands from the project directory:
 
 ```bash
-# Stato
-sudo docker compose ps
+# Status
+docker compose ps
 
-# Log (Ctrl+C interrompe solo la visualizzazione)
-sudo docker compose logs -f --tail=100
+# Logs (Ctrl+C only stops following the logs)
+docker compose logs -f --tail=100
 
-# Arresto manuale
-sudo docker compose stop
+# Stop and resume
+docker compose stop
+docker compose start
 
-# Ripresa dopo un arresto manuale
-sudo docker compose start
+# Rebuild after changing or downloading code
+docker compose up -d --build
 
-# Aggiornamento dopo aver modificato o scaricato il codice
-sudo docker compose up -d --build
-
-# Validazione della configurazione
+# Validate the configuration
 docker compose config --quiet
 ```
 
-Il normale utilizzo richiede soltanto il browser. Le modifiche al codice richiedono una nuova build; dipendenze, build locali, Git e file di ambiente sono esclusi dal contesto tramite `.dockerignore`. I comandi usano `sudo` senza modificare i gruppi dell’utente.
+On Linux, prefix Docker commands with `sudo` if your installation requires it.
+On a systemd system, `sudo systemctl enable --now docker` enables Docker at boot;
+with Docker Desktop, start the application. The `unless-stopped` restart policy
+restarts Punto when Docker starts, including after a reboot. A manual stop stays
+in effect until you start it again. See Docker's documentation on
+[container restart policies](https://docs.docker.com/engine/containers/start-containers-automatically/)
+and [Linux service and permissions](https://docs.docker.com/engine/install/linux-postinstall/).
 
-Mantieni esattamente **http://localhost:5173** per riutilizzare i dati del normale avvio Vite sulla stessa origine e nello stesso profilo browser. `http://127.0.0.1:5173`, una porta diversa o un sito HTTPS hanno archivi distinti: se cambi indirizzo, esporta prima i dati dal vecchio e importali nel nuovo. Su localhost è disponibile anche Web Crypto per la cifratura del collegamento GitHub.
+There is no database container or Docker data volume: **your data is stored in
+your browser**. Keep exactly **http://localhost:5173** and the same browser profile
+to reuse data from a Vite session at that address. `http://127.0.0.1:5173`, another
+port, and an HTTPS site each have separate storage. Export from the old address
+before moving, then import at the new one. Localhost supports the Web Crypto
+operations used to protect the GitHub token.
 
-Riferimenti: [riavvio automatico dei container](https://docs.docker.com/engine/containers/start-containers-automatically/), [servizio e permessi Docker su Linux](https://docs.docker.com/engine/install/linux-postinstall/).
+## Local development
 
-## Sviluppo da un clone pulito
-
-Richiede Node.js **22.12 o successivo** e npm. Dipendenze esatte e `package-lock.json` sono inclusi.
+Use Node.js **22.12 or later** and npm. Exact dependency versions and a lockfile
+are included. From a clean clone:
 
 ```bash
-git clone git@github.com:foti-antonio/punto-dashboard.git
+git clone https://github.com/foti-antonio/punto-dashboard.git
 cd punto-dashboard
 npm ci
 npm run dev
 ```
 
-Apri l’indirizzo locale mostrato da Vite. Per verificare e costruire la versione di produzione:
+Open **http://localhost:5173**. If the Docker container occupies that port, stop it
+with `docker compose stop` first; check the address printed by Vite.
+To test, build, and preview production output:
 
 ```bash
 npm test
@@ -64,110 +93,223 @@ npm run build
 npm run preview
 ```
 
-La build è in `dist/`: puoi pubblicare **solo quella directory** su qualunque hosting statico HTTPS. I font sono inclusi e non richiedono servizi esterni. Per un sottopercorso, imposta `base` in `vite.config.ts` e adatta i percorsi dei font e della favicon; l’impostazione predefinita usa la radice del dominio. La navigazione usa hash, quindi non servono regole di riscrittura delle pagine.
+The production build is in `dist/`. Serve **only that directory** on a static
+HTTPS host. Fonts are bundled locally. Hash-based navigation does not require
+page rewrite rules. For deployment under a subpath, configure `base` in
+[`vite.config.ts`](vite.config.ts) and adjust the font and favicon paths; the
+existing configuration uses the domain root. Hosts that support `_headers`
+read the supplied file; configure equivalent headers on other hosts.
 
-Il manifest Sites è [`.openai/hosting.json`](.openai/hosting.json). Quando trasferisci il codice a un nuovo progetto Sites, sostituisci l’identità del progetto seguendo la procedura di Sites; per altri hosting il manifest non serve. Il file `_headers` è utilizzato dagli hosting compatibili; sugli altri configura gli stessi header nelle impostazioni del provider.
+[`.openai/hosting.json`](.openai/hosting.json) preserves the original Sites
+integration. Its `project_id` identifies Punto's **original hosting project**;
+it is not a credential and does not grant access. Do not reuse it to deploy a
+fork: connect a new Sites project and use its identifier. Other static hosts do
+not need this manifest.
 
-## Primo utilizzo
+## First use and local storage
 
-1. In **Settings → Language** puoi scegliere **Italiano**; le indicazioni seguenti usano le etichette italiane. In **Impostazioni** inserisci il tuo nome. La valuta è EUR e il fuso è Europe/Rome.
-2. Aggiungi un **conto**, con saldo iniziale e data di partenza. I movimenti successivi devono essere dalla stessa data in avanti. Il saldo iniziale è precedente a tutti i movimenti di quella giornata.
-3. Crea un progetto e collega attività, incassi e spese. Il risultato del progetto è la differenza tra i movimenti registrati e non ha significato fiscale.
-4. Registra i movimenti reali in **Finanze** e quelli futuri in **Previsioni**. I trasferimenti aggiornano entrambi i conti senza entrare nelle entrate o nelle uscite.
-5. Puoi provare dati dimostrativi in **Impostazioni → Esplora o riparti**. La demo sostituisce i dati attivi soltanto dopo conferma e crea una copia locale. **Svuota i dati** permette di iniziare da zero allo stesso modo.
+1. In **Settings**, enter your name. In **Settings → Language**, choose English
+   or Italiano. Currency remains EUR and the time zone remains Europe/Rome.
+2. Add an account with an opening balance and date. Transactions must be on or
+   after that date; the opening balance precedes all transactions on that day.
+3. Create projects and link tasks, income, and expenses. Project results are the
+   difference between recorded income and expenses, without tax-accounting meaning.
+4. Record actual transactions in **Finances** and future ones in **Forecasts**.
+   Transfers affect both accounts without counting as income or expenses.
+5. Try the demo under **Settings → Explore or start again**. Loading the demo or
+   clearing data requires confirmation and creates a local backup first.
 
-Ogni modifica viene salvata in IndexedDB prima di chiudere il relativo modulo. Se il salvataggio fallisce, la finestra rimane aperta con l’errore. La persistenza dipende dal profilo browser e dall’origine: localhost, sito pubblicato e altro hosting hanno archivi distinti. Cambiare browser, usare una finestra privata o cancellare i dati del sito può rendere indisponibile la copia locale. Esporta i dati o salvali su GitHub prima di spostarti.
+Changes are saved to IndexedDB before their form closes. If saving fails, the
+form stays open with an error. Storage belongs to the browser profile and origin:
+changing browser, using a private window, or clearing site data can make your
+local copy unavailable. Export regularly or save to your private GitHub repository.
 
-In **Impostazioni → Aspetto** scegli **Chiaro**, **Scuro** o **Sistema**. Il cambio è immediato; al primo accesso Punto segue il tema del dispositivo, inclusi i suoi cambiamenti. La preferenza è salvata in `localStorage` con chiave `punto-theme` e aggiorna le altre schede aperte. Se il browser impedisce il salvataggio, viene applicata alla sessione con un avviso. Il tema è separato dai dati: esportazioni, backup, ripristino, demo e sincronizzazione GitHub non lo modificano.
+Under **Settings → Appearance**, choose Light, Dark, or System. The default
+follows the device, including later system changes. Theme and language choices
+are stored separately in `localStorage` (`punto-theme` and `punto-language`) and
+update other open tabs. If storage is blocked, the choice applies to the session
+and settings show a warning. These preferences are excluded from JSON exports,
+backups, restores, demos, and GitHub synchronization.
 
-## Lingua e formati
+## Language and formats
 
-Punto parte in **English**, anche su un’installazione esistente senza preferenza salvata. In **Settings → Language** (oppure **Impostazioni → Lingua**) scegli **English / Italiano**. Il cambio è immediato, aggiorna le altre schede aperte, i testi accessibili, il titolo e la descrizione della pagina. La scelta viene salvata in `localStorage` con chiave `punto-language`; se il browser blocca lo storage, resta valida nella sessione e appare un avviso nelle impostazioni. Un valore assente o non valido usa l’inglese, indipendentemente dalla lingua del browser.
+Without a valid saved language preference, Punto uses English regardless of the
+browser language, including on existing installations. Switching language updates
+the interface, accessible text, page title, and description immediately. Dates
+and numbers use `en-GB` or `it-IT`; currency and time zone remain EUR and Europe/Rome.
+Money inputs use an English decimal point or Italian decimal comma and preserve
+the entered amount when language changes, including unfinished input. CSV parsing
+keeps its own explicit separator and date-format settings.
 
-Date e numeri seguono `en-GB` o `it-IT`. La valuta resta **EUR** e il fuso **Europe/Rome**. Nei moduli monetari il punto è decimale in inglese e la virgola in italiano; cambiando lingua con un modulo aperto vengono convertiti insieme separatori decimali e delle migliaia, conservando il significato degli importi digitati, anche incompleti. Il CSV mantiene sempre le proprie opzioni esplicite di separatore e formato della data.
+Changing language does not translate saved names, notes, categories, or existing
+demo data. New initial categories and demos use the selected language; restored
+files keep their text. JSON schema, identifiers, statuses, priorities, and internal
+scopes stay unchanged. Empty synchronization bases are independent of language.
 
-La preferenza è locale ed esclusa da esportazioni, backup e sincronizzazione GitHub. Cambiarla non modifica nomi, note, descrizioni, categorie o demo già salvati. Nuove demo e categorie iniziali vengono create nella lingua selezionata; un ripristino conserva i testi del file. Schema JSON, identificativi, stati, priorità e ambiti interni restano invariati. Le strutture vuote usate come base della sincronizzazione sono indipendenti dalla lingua.
+## Public code and private GitHub synchronization
 
-## Repository separate e GitHub
+The [public code repository](https://github.com/foti-antonio/punto-dashboard)
+contains the application and examples, not your personal archive. Punto works
+locally without a GitHub account. To synchronize devices, create a **separate
+private data repository**, for example `YOUR-USERNAME/punto-data`, initialized
+with a README and a `main` branch. Never put personal data in the public code
+repository. The app checks that the data repository is private.
 
-- **Codice privato:** https://github.com/foti-antonio/punto-dashboard
-- **Dati privati:** https://github.com/foti-antonio/punto-dati
-- File dati: `dashboard.json`, branch `main`.
+Configure each device separately:
 
-La repository dei dati è stata creata senza dati personali. La configurazione in app verifica che sia privata; puoi usare anche una repository privata diversa. Il collegamento si configura separatamente su ogni dispositivo:
+1. Open **Settings → Connect GitHub**.
+2. Create a **fine-grained personal access token** restricted to your data
+   repository, with **Contents: Read and write**, the automatically required
+   metadata access, and an expiration date. It does not need access to the code repository.
+3. Enter your username as owner (replace `YOUR-USERNAME`), repository `punto-data`,
+   branch `main`, path `dashboard.json`, your token, and a local password of at
+   least 10 characters. Never put tokens in chat, source code, or exported JSON.
+4. The browser stores an encrypted token. The password derives an AES-256-GCM key
+   using PBKDF2/SHA-256 with 310,000 iterations and a random 16-byte salt. Each
+   encryption uses a random 12-byte IV and authenticates the repository configuration.
+   The password and decrypted token stay in memory for the session.
+5. Unlocking automatically retrieves remote updates. **Save to GitHub** writes
+   a complete copy; **Retrieve updates** compares and merges without uploading local changes.
+6. Connect a second device to the same repository to retrieve your data and
+   settings. Each device may use a different password because it protects that
+   device's token.
 
-1. Apri **Impostazioni → Collega GitHub**.
-2. Crea su GitHub un **fine-grained personal access token** limitato alla sola repository dei dati. Concedi **Contents: Read and write**, oltre ai metadati richiesti automaticamente, e imposta una scadenza. Non serve concedere accesso alla repository del codice.
-3. Nel modulo dell’app inserisci proprietario `foti-antonio`, repository `punto-dati`, branch `main`, percorso `dashboard.json`, token e una password locale di almeno 10 caratteri. Non inserire token in chat, nel codice o nei JSON esportati.
-4. La password deriva una chiave AES-256-GCM con PBKDF2/SHA-256 (310.000 iterazioni, salt casuale di 16 byte). Ogni cifratura usa un IV casuale di 12 byte e lega la configurazione tramite dati autenticati. Solo il token cifrato viene conservato nel browser; password e token decifrato rimangono in memoria per la sessione.
-5. Dopo lo sblocco l’app recupera automaticamente gli aggiornamenti. **Salva su GitHub** pubblica la copia completa; **Recupera aggiornamenti** confronta e incorpora i dati senza pubblicare le modifiche locali.
-6. Sul secondo dispositivo configura il collegamento alla stessa repository e sbloccalo per recuperare dati e impostazioni. La password può essere diversa, perché protegge il token del singolo dispositivo.
+**Lock** removes the decrypted token from the session. **Disconnect** removes
+the encrypted connection from that device; it neither deletes data nor revokes
+the GitHub token. Revoke tokens in GitHub settings. If you forget the password,
+configure the connection again with a valid token.
 
-**Blocca** rimuove il token decifrato dalla sessione. **Scollega** rimuove la configurazione cifrata dal dispositivo; non cancella i dati né revoca il token su GitHub. Per revocarlo usa le impostazioni di GitHub. Se dimentichi la password, riconfigura il collegamento con un token valido. I dati locali non sono cifrati dalla password di collegamento e rimangono accessibili al profilo browser.
+**The connection password protects the token, not your data archive.** Local
+IndexedDB data remains accessible to that browser profile. Exported JSON and the
+JSON in your private repository are also not encrypted by this password.
+HTTPS or localhost and Web Crypto are required for token encryption. Requests go
+directly from the browser to GitHub's API. Browser data is never incorporated
+into the static build.
 
-HTTPS (oppure localhost) e Web Crypto sono necessari per cifrare il collegamento. Le richieste vanno direttamente dal browser alle API GitHub. Il sito pubblico contiene solo l’interfaccia e i dati dimostrativi inclusi nel codice: i dati reali non sono inseriti negli asset pubblicati.
+References: [GitHub Contents API](https://docs.github.com/en/rest/repos/contents)
+and [personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
 
-Riferimenti: [Contents API](https://docs.github.com/en/rest/repos/contents), [fine-grained token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
+## Synchronization and conflicts
 
-## Sincronizzazione e conflitti
+Data uses `schemaVersion: 1` and an `entities` map with stable identifiers.
+Accounts, categories, projects, tasks, transactions, forecasts, scenarios, and
+settings have a type, `id`, `updatedAt`, and optional `deletedAt`. Money is stored
+as integer cents. A transfer is one entity representing both sides.
 
-Il file ha `schemaVersion: 1` e una mappa `entities`, indicizzata da identificatori stabili. Ogni entità ha tipo, `id`, `updatedAt` e un eventuale `deletedAt`. I tipi sono conti, categorie, progetti, attività, movimenti, previsioni, scenari e impostazioni. Gli importi sono interi in centesimi. I trasferimenti sono singoli elementi che rappresentano entrambe le parti del movimento.
+Synchronization compares local data, the last shared base, and the remote file.
+Changes to different entities merge automatically. Different changes to the
+same entity, including deletions, show both versions and require a choice.
+Deleting an account on one device while adding a linked transaction on another
+also creates an explicit conflict. Choices must preserve valid references.
 
-La sincronizzazione confronta la copia locale, l’ultima copia condivisa e il file remoto. Modifiche a entità diverse vengono unite; modifiche differenti alla stessa entità mostrano entrambe le versioni, incluse le eliminazioni, e richiedono una scelta per ogni conflitto. Anche la cancellazione di un conto su un dispositivo e un nuovo movimento collegato sull’altro producono un conflitto esplicito. Le scelte devono mantenere validi i riferimenti: per conservare un movimento occorre conservare il conto collegato.
+There is no last-write-wins rule. GitHub writes include the last-read file SHA;
+a remote change requires another comparison. IndexedDB updates are transactions;
+BroadcastChannel notifies other tabs, and a revision check protects merges and
+restores from concurrent edits. Network failures and expired tokens preserve
+local data and the last shared base. Deletion tombstones are not automatically compacted.
 
-Non viene usato un criterio «vince l’ultima data». Le scritture GitHub includono lo SHA del file letto: se la versione remota cambia, il salvataggio fallisce e richiede un nuovo confronto. Gli aggiornamenti locali sono transazioni IndexedDB e le schede aperte si notificano tramite BroadcastChannel; una revisione protegge i confronti e i ripristini da modifiche contemporanee. Errori di rete e token scaduti conservano dati locali e ultima base condivisa. Le eliminazioni rimangono come tombstone e non vengono compattate automaticamente.
+## CSV and backups
 
-## CSV e backup
+CSV import supports `;`, `,`, or tab separators, quoted and multiline fields,
+BOM, day/month/year dates (also dots or hyphens), ISO year-month-day dates, and
+Italian or English amounts. A header row is required. Select the columns,
+account, optional category, and amount-sign convention. Ambiguous amounts and
+more than two decimal places are reported without silent rounding.
 
-L’importatore supporta separatori `;`, `,` o tab, campi tra virgolette, righe multiple, BOM, date `GG/MM/AAAA` (anche punti o trattini) oppure `AAAA-MM-GG`, e importi italiani o inglesi. Richiede una riga di intestazioni. Scegli le colonne, il conto, una categoria facoltativa e l’interpretazione del segno. Importi con più di due decimali o separatori ambigui sono segnalati, senza arrotondamenti silenziosi.
+Preview does not write data. Invalid rows remain visible with explanations and
+are excluded. Possible duplicates are checked against existing transactions and
+within the CSV by date, amount, direction, account, and normalized description.
+They are excluded initially and can be included explicitly; the check repeats
+before confirmation. Limits are 5 MB and 10,000 rows. Preview displays up to
+200 rows but validates all of them. Use the dedicated transfer form for transfers.
 
-L’anteprima non scrive dati. Le righe errate sono escluse e restano visibili con il motivo. I possibili duplicati sono confrontati per data, importo, direzione, conto e descrizione normalizzata, sia contro i dati presenti sia all’interno del CSV. Sono esclusi inizialmente e si possono includere esplicitamente. Il controllo viene ripetuto prima della conferma. Limiti: 5 MB, 10.000 righe; l’anteprima mostra fino a 200 righe, ma le controlla tutte. Per i trasferimenti usa il modulo dedicato, così non vengono importati come costi o ricavi.
+**Settings → Export JSON** includes all entities and settings, without tokens,
+passwords, GitHub configuration, or local backup copies. Restore validates the
+structure and references, shows counts, and asks for confirmation. It preserves
+a local IndexedDB copy before replacing data; the last five copies can be
+exported or restored. These copies share the same browser storage and do not
+replace an external backup. Missing entities are marked deleted and restored
+entities are marked changed so the next synchronization recognizes the restore.
+You can also recover earlier versions from `dashboard.json` history on GitHub.
 
-L’esportazione JSON include tutte le entità e le impostazioni, senza token, password, configurazione GitHub o copie locali. Il ripristino valida struttura e riferimenti, mostra i conteggi e richiede conferma. Prima della sostituzione conserva una copia IndexedDB; le ultime cinque copie si possono esportare o ripristinare. Le entità assenti dal file vengono marcate eliminate e quelle ripristinate risultano modificate, così il ripristino viene riconosciuto nella successiva sincronizzazione. Per recuperare versioni precedenti usa anche la cronologia di `dashboard.json` su GitHub.
+## Forecasts
 
-## Previsioni
+Forecasts can be one-off, weekly, monthly, or annual. Monthly recurrence preserves
+the original day, adjusted to the length of each month. The view covers six
+calendar months starting with the current month. Current balance includes actual
+transactions through today; unrecorded forecasts are added from today onward.
+Overdue forecasts show a warning and stay out of the future balance until recorded
+or rescheduled.
 
-Ricorrenze singole, settimanali, mensili e annuali; le date mensili conservano il giorno originale, adattandolo alla lunghezza del mese. La vista mostra sei mesi di calendario, dal mese corrente. Il saldo attuale include i movimenti effettivi fino a oggi; le previsioni non registrate vengono aggiunte dal giorno corrente. I movimenti scaduti restano nella lista con un avviso e sono esclusi dal saldo futuro finché non vengono registrati o spostati.
+Each occurrence uses the forecast ID and a stable recurrence index. Changing a
+start date does not recreate already recorded occurrences. Recording an occurrence
+creates a linked actual transaction and excludes that occurrence from forecasts,
+including scenarios; deleting the transaction reopens it. Two active transactions
+cannot share an occurrence. Scenarios adjust occurrence dates, amounts, or exclusion
+without changing actual transactions or base rules. The table shows up to 150
+occurrences, while calculations include the whole horizon.
 
-Ogni occorrenza è identificata da previsione e indice stabile della ricorrenza: modificare la data di partenza non fa ricomparire le occorrenze già registrate. **Registra** apre un movimento effettivo collegato: dopo la conferma, quell’occorrenza viene esclusa dalla previsione, anche negli scenari. Eliminare il movimento effettivo riapre l’occorrenza. Una stessa occorrenza non può avere due movimenti attivi collegati. Gli scenari salvano variazioni per occorrenza (data, importo, esclusione) e non cambiano movimenti reali o regole di base. La tabella mostra fino a 150 occorrenze, ma i calcoli includono tutte quelle nell’orizzonte.
+## Daily quote
 
-## Citazione del giorno
+The sidebar shows one of 30 short Stoic quotations from Marcus Aurelius, Seneca,
+and Epictetus in the selected language. The translations are original, with
+[source references](docs/stoic-quotes.md). All devices and both languages share
+the same selection for each Europe/Rome day, without consecutive repeats. It
+updates while the app is open and when returning to a tab, entirely locally.
 
-La barra laterale mostra una breve citazione stoica nella lingua selezionata con il nome
-dell’autore e il riferimento tradotti. Le 30 citazioni di Marco Aurelio, Seneca ed Epitteto sono traduzioni
-proprie, con [riferimenti ai testi originali](docs/stoic-quotes.md). La selezione è
-uguale nelle due lingue e su tutti i dispositivi nella stessa giornata di `Europe/Rome`, cambia
-ogni giorno senza ripetizioni consecutive e si aggiorna anche lasciando l’app
-aperta o tornando nella scheda. Funziona interamente in locale, senza API o
-impostazioni aggiuntive.
+## Verification
 
-## Verifica
+From a clean clone, run `npm ci`, `npm test`, and `npm run build`.
+The [Verify workflow](.github/workflows/check.yml) runs the same checks on pushes
+to `main` and pull requests. For Docker, also run `docker compose config --quiet`,
+`docker compose up -d --build`, and open `http://localhost:5173`.
 
-`npm test` verifica importi e saldi, trasferimenti, ricorrenze e date, riconciliazione, scenari, CSV errati e duplicati, merge a tre vie e conflitti, SHA e race, recupero dopo errori di rete e token scaduti, cifratura, persistenza IndexedDB, revisioni e backup. Include percorsi React in entrambe le lingue con DOM simulato: creazione collegata di conto/progetto/attività/movimento, aggiornamento di panoramica e analisi, trasferimenti, registrazione previsioni e navigazione. I test del tema coprono avvio prima di React, valori non validi, persistenza, cambiamenti del sistema, eventi tra schede, storage bloccato e selezione da tastiera senza modificare i dati.
+Tests cover money, balances, transfers, recurrence, scenarios, CSV validation and
+duplicates, three-way merges, conflicts, remote SHA checks, concurrency, network
+failures, expired tokens, encryption, IndexedDB, revisions, and backups. React
+flows run in a simulated DOM in both languages. Theme and language tests include
+persistence, blocked storage, cross-tab updates, keyboard selection, dictionary
+coverage, localized demos and quotes, and amount preservation during language changes.
 
-I test della lingua coprono default inglese, preferenza persistente e storage bloccato, eventi tra schede, completezza dei dizionari, citazioni e demo localizzate, errori già aperti, importi durante il cambio lingua e opzioni CSV invariate. Verificano inoltre che la lingua non modifichi i dati esportati o sincronizzati.
+**GitHub tests use simulated responses and device stores. They do not certify
+synchronization with a real token.** For changes to synchronization, additionally
+use fictional data in a private test repository on two browsers or devices:
 
-La build TypeScript deve passare. I temi sono stati verificati in Chromium con dati demo sulle sette pagine a 1440 e 390 px, inclusi menu, grafici, moduli, finestre, contrasto, avvio scuro e aggiornamento tra due schede. I test GitHub usano risposte simulate e due archivi di dispositivo; non equivalgono a una prova interattiva con token reale. Prima di inserire dati importanti, completa questa verifica con la demo su due browser/dispositivi:
+- Create and edit linked items, statuses, subtasks, and filters.
+- Save and retrieve from both devices, merge distinct changes, and resolve both
+  sides of a same-entity conflict.
+- Try a network failure and expired token, checking that local data remains available.
+- Import the sample CSV, inspect invalid and duplicate rows, then export and restore JSON.
+- Check both languages and themes, desktop and 390 px layouts, keyboard navigation,
+  menus, charts, forms, and dialog focus in a real browser.
 
-- Creare e modificare elementi, cambiare stati e sottoattività; controllare i filtri.
-- Salvare e recuperare da due dispositivi, unire elementi diversi e scegliere entrambe le opzioni di un conflitto sullo stesso elemento.
-- Provare un errore di rete e un token scaduto; verificare che la copia locale rimanga disponibile.
-- Importare `examples/movimenti.csv`, controllare righe errate e duplicati, confermare e provare esportazione/ripristino.
-- Controllare moduli, menu, tabelle e grafici a 390 px e su desktop, navigazione da tastiera e focus delle finestre.
+## Source layout
 
-## Struttura
+| Path                                                  | Purpose                                                         |
+| ----------------------------------------------------- | --------------------------------------------------------------- |
+| `src/domain.ts`                                       | Model, validation, accounts, forecasts, merges, demo data       |
+| `src/storage.ts`                                      | IndexedDB, revisions, backups, exports, cross-tab notifications |
+| `src/github.ts`                                       | GitHub API, encrypted token vault, synchronization              |
+| `src/csv.ts`                                          | CSV parsing and import preview                                  |
+| `src/App.tsx`                                         | Navigation and main views                                       |
+| `src/forms.tsx`, `src/Import.tsx`, `src/Settings.tsx` | Entry forms, import, settings and data management               |
+| `src/components.tsx`, `src/styles.css`                | Accessible components, SVG charts, responsive layout            |
+| `src/i18n.ts`, `src/locales/`, `src/MoneyInput.tsx`   | Language preferences, dictionaries, localized money input       |
+| `src/quotes.ts`, `src/DailyQuote.tsx`                 | Bilingual quotations and daily selection                        |
+| `src/theme.ts`, `src/theme.css`, `index.html`         | Theme preferences, palettes, theme before React loads           |
+| `tests/`                                              | Domain, storage, synchronization, and React tests               |
 
-- `src/domain.ts`: modello, validazione, conti, previsioni, merge e dati demo.
-- `src/storage.ts`: IndexedDB, revisioni, backup, esportazione e notifiche tra schede.
-- `src/github.ts`: API GitHub, vault cifrato e sincronizzazione.
-- `src/csv.ts`: parsing e anteprima dell’importazione.
-- `src/App.tsx`: navigazione e moduli principali.
-- `src/forms.tsx`, `src/Import.tsx`, `src/Settings.tsx`: inserimento, importazione e gestione dati.
-- `src/components.tsx`, `src/styles.css`: componenti accessibili, grafici SVG e layout adattivo.
-- `src/i18n.ts`, `src/locales/`: lingua locale, hook reattivo, messaggi tipizzati, parametri e dizionari.
-- `src/MoneyInput.tsx`: input monetari che conservano il valore al cambio lingua.
-- `src/quotes.ts`: raccolta bilingue con identità e ordine giornaliero comuni.
-- `src/theme.ts`, `src/theme.css`: preferenza locale e palette; `index.html` applica il tema prima del caricamento di React.
-- `tests/`: test di dominio, persistenza, sincronizzazione e percorsi React.
+## Contributing and license
 
-I font DM Sans e Manrope sono distribuiti con licenza SIL Open Font License, inclusa in `public/fonts/`. Le icone provengono da Lucide. Non sono inclusi contabilità fiscale, banche automatiche, AI, allegati, calendario o rilevazione ore.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Use **fictional data only** in issues and
+pull requests.
+
+Punto is licensed under the [MIT license](LICENSE), Copyright (c) 2026 Antonio Foti.
+The package keeps `"private": true`: this is an application to run or build,
+not a package to publish to npm.
+
+Third-party assets retain their own licenses. [DM Sans](public/fonts/DM-Sans-LICENSE.txt)
+and [Manrope](public/fonts/Manrope-LICENSE.txt) use the SIL Open Font License.
+React, React DOM, Scheduler, and Lucide/Feather icon notices are preserved in
+[THIRD-PARTY-NOTICES.txt](public/THIRD-PARTY-NOTICES.txt), also included in production
+builds. Stoic translation references are in [docs/stoic-quotes.md](docs/stoic-quotes.md).
